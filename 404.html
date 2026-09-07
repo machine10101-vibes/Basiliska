@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Basiliska</title>
+    <link rel="icon" type="image/svg+xml" href="/Basiliska/favicon.svg" />
+    <script type="module" crossorigin src="/Basiliska/assets/index-C3bmT_wQ.js"></script>
+    <link rel="stylesheet" crossorigin href="/Basiliska/assets/index-Ch-MSQao.css">
+  </head>
+  <body>
+    <!-- Single full-window canvas. Three.js renders everything here. -->
+    <canvas id="game" aria-label="Game viewport"></canvas>
+
+    <!-- Lightweight DOM HUD. Text is only touched when a value changes. -->
+    <aside id="hud" class="hud">
+      <header class="hud__title">
+        <span class="hud__map">Lorencia Test Grid</span>
+        <span class="hud__fps"><span id="hud-fps">--</span> fps</span>
+      </header>
+
+      <dl class="hud__stats">
+        <dt>Player tile</dt>
+        <dd id="hud-player-tile">0, 0</dd>
+        <dt>Hover tile</dt>
+        <dd id="hud-hover-tile">—</dd>
+        <dt>Status</dt>
+        <dd id="hud-status">Idle</dd>
+      </dl>
+
+      <fieldset class="hud__glow">
+        <legend>Item glow</legend>
+        <label class="hud__row">
+          <span>Level</span>
+          <select id="glow-preset">
+            <option value="none">+0 (none)</option>
+            <option value="gold" selected>+7 Gold</option>
+            <option value="blue">+9 Blue</option>
+            <option value="crimson">+11 Crimson</option>
+            <option value="violet">+13 Violet</option>
+            <option value="white">+15 White</option>
+          </select>
+        </label>
+        <label class="hud__row">
+          <span>Intensity <output id="glow-value">1.00</output></span>
+          <input id="glow-range" type="range" min="0" max="3" step="0.05" value="1" />
+        </label>
+      </fieldset>
+
+      <p class="hud__help">Left-click a floor tile to walk there. Dark blocks are impassable.</p>
+    </aside>
+
+  </body>
+</html>
