@@ -16,7 +16,7 @@ const BASE = '/Basiliska/';
 const DIST = join(ROOT, 'dist');
 const WORKTREE = '/tmp/basiliska-gh-pages';
 const LIVE = 'https://machine10101-vibes.github.io/Basiliska/';
-const REMOTE = process.env.PAGES_REMOTE || 'github';
+const REMOTE = process.env.PAGES_REMOTE || 'origin';
 
 function sh(cmd) {
   return new Promise((resolve, reject) => {
