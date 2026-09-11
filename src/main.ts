@@ -1,19 +1,8 @@
-import * as THREE from 'three';
-import { Game } from './core/Game';
+import { Game } from './game/Game';
 
-// Treat every hex colour literally (no sRGB -> linear conversion). Our shaders
-// write straight to the framebuffer, so "what you type is what you see".
-THREE.ColorManagement.enabled = false;
-
-const canvas = document.getElementById('game');
+const canvas = document.getElementById('game-canvas');
 if (!(canvas instanceof HTMLCanvasElement)) {
-  throw new Error('index.html must contain <canvas id="game">');
+  throw new Error('Missing #game-canvas');
 }
 
-const game = new Game(canvas);
-game.start();
-
-// Expose for quick poking around in the devtools console during development.
-if (import.meta.env.DEV) {
-  (window as unknown as { game: Game }).game = game;
-}
+new Game(canvas);

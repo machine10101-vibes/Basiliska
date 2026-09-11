@@ -1,7 +1,7 @@
 {
   "name": "basiliska",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,13 +10,13 @@
     "typecheck": "tsc --noEmit",
     "pages": "node scripts/publish-gh-pages.mjs"
   },
-  "devDependencies": {
-    "@types/three": "^0.185.4",
-    "typescript": "~6.0.2",
-    "vite": "^8.2.2"
-  },
   "dependencies": {
-    "three": "^0.185.1"
+    "three": "^0.170.0"
   },
-  "description": "Web-based 3D retro MMORPG foundation inspired by MU Online (Three.js + TypeScript)"
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  },
+  "description": "Basiliska — retro isometric MMORPG foundation. Valehaven gate town (Three.js + TypeScript)."
 }

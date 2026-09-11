@@ -16,11 +16,13 @@ const BASE = '/Basiliska/';
 const DIST = join(ROOT, 'dist');
 const WORKTREE = '/tmp/basiliska-gh-pages';
 const LIVE = 'https://machine10101-vibes.github.io/Basiliska/';
-const REMOTE = process.env.PAGES_REMOTE || 'github';
+const REMOTE = process.env.PAGES_REMOTE || 'origin';
 
 function sh(cmd) {
   return new Promise((resolve, reject) => {
-    const child = spawn('bash', ['-lc', cmd], { cwd: ROOT, stdio: 'inherit' });
+    const env = { ...process.env };
+    delete env.npm_config_prefix;
+    const child = spawn('bash', ['-c', cmd], { cwd: ROOT, stdio: 'inherit', env });
     child.on('exit', (code) => {
       if (code === 0) resolve();
       else reject(new Error(`${cmd} exited ${code}`));
