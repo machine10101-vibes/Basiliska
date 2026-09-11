@@ -551,6 +551,7 @@ export class Game {
     this.pendingTarget = null;
     this.pendingPowered = false;
     this.hud.setProgress(false);
+    this.hud.setTarget(null);
     this.activity = { type: 'move', tx: pt.x, tz: pt.z };
     this.showMarker(pt.x, pt.z);
   }
