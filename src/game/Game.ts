@@ -99,7 +99,7 @@ export class Game {
   private fountainJet: THREE.Object3D | null = null;
   private inputBound = false;
   private camYaw = Math.PI / 4;
-  private camDist = 24;
+  private camDist = 18;
   private orbiting = false;
   private lastPointerX = 0;
 
@@ -270,7 +270,7 @@ export class Game {
       'wheel',
       (e) => {
         e.preventDefault();
-        this.camDist = Math.max(12, Math.min(36, this.camDist + e.deltaY * 0.02));
+        this.camDist = Math.max(11, Math.min(32, this.camDist + e.deltaY * 0.02));
       },
       { passive: false },
     );

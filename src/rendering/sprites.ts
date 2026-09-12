@@ -571,7 +571,7 @@ export function createHeroSprite(
   heroClass: 'vanguard' | 'sage' | 'archer',
   gear: Gear,
 ): SpriteActor {
-  return new SpriteActor('hero', gear, HERO_PALETTES[heroClass], 1.75, 2.25);
+  return new SpriteActor('hero', gear, HERO_PALETTES[heroClass], 2.35, 3.05);
 }
 
 export function createNpcSprite(kind: 'herald' | 'smith' | 'alchemist' | 'inn'): SpriteActor {
@@ -580,15 +580,15 @@ export function createNpcSprite(kind: 'herald' | 'smith' | 'alchemist' | 'inn'):
     hat: kind === 'alchemist' ? 'hood' : kind === 'herald' ? 'helm' : kind === 'inn' ? 'cap' : 'none',
     shield: kind === 'herald',
   };
-  return new SpriteActor(kind, gear, NPC_PAL[kind], 1.65, 2.1);
+  return new SpriteActor(kind, gear, NPC_PAL[kind], 2.15, 2.75);
 }
 
 export function createMobSprite(kind: 'wolf' | 'goblin' | 'crawler' | 'dummy'): SpriteActor {
   const scale =
-    kind === 'wolf' ? [2.1, 1.7]
-    : kind === 'crawler' ? [1.8, 1.4]
-    : kind === 'dummy' ? [1.5, 2.1]
-    : [1.5, 1.9];
+    kind === 'wolf' ? [2.5, 2.0]
+    : kind === 'crawler' ? [2.1, 1.65]
+    : kind === 'dummy' ? [1.85, 2.55]
+    : [1.95, 2.45];
   return new SpriteActor(kind, { weapon: kind === 'goblin' ? 'club' : 'none', hat: 'none', shield: false }, undefined, scale[0], scale[1]);
 }
 
