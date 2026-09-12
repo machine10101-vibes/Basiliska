@@ -99,7 +99,7 @@ export class Game {
   private fountainJet: THREE.Object3D | null = null;
   private inputBound = false;
   private camYaw = Math.PI / 4;
-  private camDist = 18;
+  private camDist = 16;
   private orbiting = false;
   private lastPointerX = 0;
 

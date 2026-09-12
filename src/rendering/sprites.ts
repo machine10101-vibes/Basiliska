@@ -221,15 +221,15 @@ function pose(anim: AnimName, frame: number, dir: number) {
 
 type Pose = ReturnType<typeof pose>;
 
-function drawEye(p: Pix, ex: number, ey: number, pal: Palette, blink: boolean, rx = 4, ry = 6): void {
+function drawEye(p: Pix, ex: number, ey: number, pal: Palette, blink: boolean, rx = 5, ry = 7): void {
   if (blink) {
     p.hline(ex - rx, ey + 1, rx * 2 + 1, pal.outline);
     p.hline(ex - rx + 1, ey + 2, rx * 2 - 1, pal.skinSh);
     return;
   }
-  p.oval(ex, ey, rx, ry, '#fff8f4', pal.outline);
+  p.oval(ex, ey, rx, ry, '#fffef8', pal.outline);
   p.oval(ex, ey + 1, Math.max(2, rx - 1), Math.max(3, ry - 2), pal.eye);
-  p.disc(ex, ey + 1, 2, '#120814');
+  p.disc(ex, ey + 1, 2, '#0a0610');
   p.p(ex - 1, ey - 2, '#ffffff');
   p.p(ex - 2, ey - 1, '#ffffff');
   p.p(ex, ey - 2, '#ffffff');
@@ -267,7 +267,7 @@ function drawFace(
       p.hline(cx + 7 + ox, ey - 8, 5, pal.outline);
     }
   } else {
-    drawEye(p, cx - 11, ey, pal, blink, 4, 6);
+    drawEye(p, cx - 11, ey, pal, blink, 5, 7);
     p.p(cx - 16, hy + 5, pal.skinSh);
     p.p(cx - 17, hy + 6, pal.skinSh);
   }
@@ -864,7 +864,7 @@ export function createHeroSprite(
   heroClass: 'vanguard' | 'sage' | 'archer',
   gear: Gear,
 ): SpriteActor {
-  return new SpriteActor('hero', gear, HERO_PALETTES[heroClass], 2.5, 3.0);
+  return new SpriteActor('hero', gear, HERO_PALETTES[heroClass], 2.8, 3.36);
 }
 
 export function createNpcSprite(kind: 'herald' | 'smith' | 'alchemist' | 'inn'): SpriteActor {
@@ -873,7 +873,7 @@ export function createNpcSprite(kind: 'herald' | 'smith' | 'alchemist' | 'inn'):
     hat: kind === 'alchemist' ? 'hood' : kind === 'herald' ? 'helm' : kind === 'inn' ? 'cap' : 'none',
     shield: kind === 'herald',
   };
-  return new SpriteActor(kind, gear, NPC_PAL[kind], 2.3, 2.76);
+  return new SpriteActor(kind, gear, NPC_PAL[kind], 2.55, 3.06);
 }
 
 export function createMobSprite(kind: 'wolf' | 'goblin' | 'crawler' | 'dummy'): SpriteActor {
