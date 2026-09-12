@@ -221,27 +221,22 @@ function pose(anim: AnimName, frame: number, dir: number) {
 
 type Pose = ReturnType<typeof pose>;
 
-function drawEye(p: Pix, ex: number, ey: number, pal: Palette, blink: boolean): void {
+function drawEye(p: Pix, ex: number, ey: number, pal: Palette, blink: boolean, rx = 4, ry = 6): void {
   if (blink) {
-    p.hline(ex - 5, ey + 2, 11, pal.outline);
-    p.hline(ex - 4, ey + 3, 9, pal.skinSh);
-    p.p(ex - 5, ey + 1, pal.outline);
-    p.p(ex + 5, ey + 1, pal.outline);
+    p.hline(ex - rx, ey + 1, rx * 2 + 1, pal.outline);
+    p.hline(ex - rx + 1, ey + 2, rx * 2 - 1, pal.skinSh);
     return;
   }
-  p.oval(ex, ey, 6, 8, '#fff8f4', pal.outline);
-  p.oval(ex, ey + 1, 4, 6, pal.eye);
-  p.disc(ex, ey + 2, 2, '#120814');
-  p.p(ex - 2, ey - 3, '#ffffff');
-  p.p(ex - 1, ey - 4, '#ffffff');
-  p.p(ex - 2, ey - 2, '#ffffff');
-  p.p(ex + 1, ey - 3, '#ffffff');
-  p.p(ex + 2, ey + 4, '#c8d8ff');
-  p.hline(ex - 6, ey - 7, 13, pal.outline);
-  p.p(ex - 6, ey - 6, pal.outline);
-  p.p(ex + 6, ey - 6, pal.outline);
-  p.p(ex - 5, ey - 8, pal.outline);
-  p.p(ex + 5, ey - 8, pal.outline);
+  p.oval(ex, ey, rx, ry, '#fff8f4', pal.outline);
+  p.oval(ex, ey + 1, Math.max(2, rx - 1), Math.max(3, ry - 2), pal.eye);
+  p.disc(ex, ey + 1, 2, '#120814');
+  p.p(ex - 1, ey - 2, '#ffffff');
+  p.p(ex - 2, ey - 1, '#ffffff');
+  p.p(ex, ey - 2, '#ffffff');
+  p.p(ex + 1, ey + 3, '#c8d8ff');
+  p.hline(ex - rx, ey - ry, rx * 2 + 1, pal.outline);
+  p.p(ex - rx, ey - ry + 1, pal.outline);
+  p.p(ex + rx, ey - ry + 1, pal.outline);
 }
 
 function drawFace(
@@ -252,30 +247,35 @@ function drawFace(
   po: Pose,
   anim: AnimName,
   frame: number,
+  hat: HatKind,
 ): void {
   if (po.back) return;
   const blink = anim === 'idle' && frame === 7;
   const mad = anim === 'attack';
   const cast = anim === 'cast';
-  const ey = hy + 2;
+  const ey = hy + 3;
+  const hooded = hat === 'hood' || hat === 'wolfhood';
+  const threeQ = po.dir === 1;
+  const twoEyes = !po.profile || hooded;
 
-  if (po.profile) {
-    drawEye(p, cx - 6, ey, pal, blink);
-    p.p(cx - 16, hy + 4, pal.skinSh);
-    p.p(cx - 17, hy + 5, pal.skinSh);
-  } else {
-    drawEye(p, cx - 8, ey, pal, blink);
-    drawEye(p, cx + 8, ey, pal, blink);
+  if (twoEyes) {
+    const ox = threeQ ? 2 : 0;
+    drawEye(p, cx - 7 + ox, ey, pal, blink);
+    drawEye(p, cx + 7 + ox, ey, pal, blink);
     if (mad) {
-      p.hline(cx - 13, ey - 10, 6, pal.outline);
-      p.hline(cx + 7, ey - 10, 6, pal.outline);
+      p.hline(cx - 12 + ox, ey - 8, 5, pal.outline);
+      p.hline(cx + 7 + ox, ey - 8, 5, pal.outline);
     }
+  } else {
+    drawEye(p, cx - 11, ey, pal, blink, 4, 6);
+    p.p(cx - 16, hy + 5, pal.skinSh);
+    p.p(cx - 17, hy + 6, pal.skinSh);
   }
 
-  p.oval(cx - 13, hy + 9, 4, 2, pal.blush);
-  p.oval(cx + 13, hy + 9, 4, 2, pal.blush);
-  p.p(cx - 10, hy + 5, pal.skinHi);
-  p.p(cx + 9, hy + 5, pal.skinHi);
+  p.oval(cx - 12, hy + 10, 3, 2, pal.blush);
+  p.oval(cx + 12, hy + 10, 3, 2, pal.blush);
+  p.p(cx - 9, hy + 6, pal.skinHi);
+  p.p(cx + 8, hy + 6, pal.skinHi);
 
   if (cast) {
     p.oval(cx, hy + 14, 2, 2, pal.outline);
@@ -508,7 +508,7 @@ function drawHuman(
   if (!po.back) {
     p.oval(cx, hy + 2, 12, 13, pal.skin);
     p.oval(cx - 4, hy - 2, 5, 5, pal.skinHi);
-    drawFace(p, cx, hy, pal, po, anim, frame);
+    drawFace(p, cx, hy, pal, po, anim, frame, gear.hat);
   }
 
   drawArm(p, cx + 14, chestY + (po.armR | 0), pal, hand);
