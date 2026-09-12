@@ -18,7 +18,7 @@
       <div id="title-screen">
         <div class="title-veil"></div>
         <div class="title-card">
-          <p class="title-kicker">Isometric MMORPG foundation</p>
+          <p class="title-kicker">2.5D isometric MMORPG</p>
           <h1>Basiliska</h1>
           <p class="title-sub">Valehaven · Gate of the Green Marches</p>
           <label class="name-field">
@@ -27,14 +27,17 @@
           </label>
           <div class="class-row" role="list">
             <button type="button" class="class-card selected" data-class="vanguard">
+              <canvas class="class-portrait" width="64" height="80"></canvas>
               <span class="class-name">Iron Vanguard</span>
               <span class="class-blurb">Plate &amp; oath. Holds the gate.</span>
             </button>
             <button type="button" class="class-card" data-class="sage">
+              <canvas class="class-portrait" width="64" height="80"></canvas>
               <span class="class-name">Aether Sage</span>
               <span class="class-blurb">Sigil &amp; flame. Softens packs.</span>
             </button>
             <button type="button" class="class-card" data-class="archer">
+              <canvas class="class-portrait" width="64" height="80"></canvas>
               <span class="class-name">Thorn Archer</span>
               <span class="class-blurb">Bow &amp; briar. Clean picks.</span>
             </button>
@@ -53,6 +56,10 @@
             <div id="compass-n" title="North" aria-hidden="true"></div>
             <canvas id="minimap" width="160" height="160"></canvas>
             <div id="minimap-label">Valehaven</div>
+          </div>
+          <div id="cam-orbit">
+            <button type="button" id="cam-ccw" title="Orbit left (Q)">⟲</button>
+            <button type="button" id="cam-cw" title="Orbit right (E)">⟳</button>
           </div>
         </div>
 
@@ -133,7 +140,7 @@
           <div class="bar thin"><div id="target-hp"></div></div>
         </div>
 
-        <div id="touch-hint">Click cobbles to walk · Click wolves, raiders, crawlers · Town is safe</div>
+        <div id="touch-hint">Q / E or right-drag to orbit · Click tiles to walk · Town is safe</div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

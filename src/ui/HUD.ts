@@ -161,9 +161,10 @@ export class HUD {
     this.zoneLabel.textContent = name;
   }
 
-  setInventory(items: ItemStack[]): void {
+  setInventory(items: ItemStack[], save?: SaveData): void {
     this.invGrid.innerHTML = '';
     const slots = 32;
+    const worn = new Set([save?.weapon, save?.hat, save?.shield].filter(Boolean));
     for (let i = 0; i < slots; i++) {
       const slot = document.createElement('button');
       slot.type = 'button';
@@ -172,7 +173,8 @@ export class HUD {
       if (item) {
         const meta = ITEM_META[item.id];
         slot.classList.add('has-item');
-        slot.title = meta?.name ?? item.id;
+        if (worn.has(item.id)) slot.classList.add('equipped');
+        slot.title = (meta?.name ?? item.id) + (worn.has(item.id) ? ' (equipped — click to swap)' : '');
         slot.innerHTML = `<span>${meta?.icon ?? '?'}</span>${
           item.qty > 1 ? `<span class="inv-qty">${item.qty}</span>` : ''
         }`;
@@ -227,6 +229,7 @@ export class HUD {
     px: number,
     pz: number,
     marks: { x: number; z: number; color: string }[],
+    camYaw = Math.PI / 4,
   ): void {
     const ctx = this.minimapCtx;
     const w = this.minimap.width;
@@ -238,22 +241,30 @@ export class HUD {
     ctx.fill();
 
     const scale = 2.15;
-    const toX = (x: number) => w / 2 + (x - px) * scale;
-    const toY = (z: number) => h / 2 + (z - pz) * scale;
+    const ang = -(camYaw - Math.PI / 4);
+    const c = Math.cos(ang);
+    const s = Math.sin(ang);
+    const toX = (x: number, z: number) => {
+      const dx = (x - px) * scale;
+      const dz = (z - pz) * scale;
+      return w / 2 + dx * c - dz * s;
+    };
+    const toY = (x: number, z: number) => {
+      const dx = (x - px) * scale;
+      const dz = (z - pz) * scale;
+      return h / 2 + dx * s + dz * c;
+    };
 
     ctx.fillStyle = '#6a6254';
-    ctx.fillRect(toX(-16), toY(-14), 32 * scale, 28 * scale);
+    ctx.fillRect(toX(-16, -14), toY(-16, -14), 32 * scale, 28 * scale);
     ctx.fillStyle = '#8a8070';
     ctx.beginPath();
-    ctx.arc(toX(0), toY(0), 9.2 * scale, 0, Math.PI * 2);
+    ctx.arc(toX(0, 0), toY(0, 0), 9.2 * scale, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#4a4438';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(toX(-16), toY(-14), 32 * scale, 28 * scale);
 
     for (const m of marks) {
       ctx.fillStyle = m.color;
-      ctx.fillRect(toX(m.x) - 2, toY(m.z) - 2, 4, 4);
+      ctx.fillRect(toX(m.x, m.z) - 2, toY(m.x, m.z) - 2, 4, 4);
     }
 
     ctx.fillStyle = '#f0d070';
