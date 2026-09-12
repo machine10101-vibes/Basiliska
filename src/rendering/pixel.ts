@@ -68,6 +68,17 @@ export class Pix {
     if (line) draw(rx, ry, line);
     draw(line ? Math.max(1, rx - 1) : rx, line ? Math.max(1, ry - 1) : ry, fill);
   }
+
+  diamond(cx: number, cy: number, rx: number, ry: number, fill: string, line?: string): void {
+    const draw = (a: number, b: number, c: string) => {
+      for (let y = -b; y <= b; y++) {
+        const span = Math.floor(a * (1 - Math.abs(y) / (b || 1)));
+        this.hline(cx - span, cy + y, span * 2 + 1, c);
+      }
+    };
+    if (line) draw(rx, ry, line);
+    draw(line ? Math.max(1, rx - 1) : rx, line ? Math.max(1, ry - 1) : ry, fill);
+  }
 }
 
 export function makeCanvas(w: number, h: number): HTMLCanvasElement {

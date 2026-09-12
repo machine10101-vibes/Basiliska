@@ -122,17 +122,18 @@ html, body {
   padding: 10px 8px;
   cursor: pointer;
   text-align: center;
-  min-height: 148px;
+  min-height: 176px;
 }
 
 .class-portrait {
   display: block;
-  width: 64px;
-  height: 80px;
+  width: 80px;
+  height: 96px;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   margin: 0 auto 6px;
-  background: #100c08;
+  background:
+    radial-gradient(ellipse at 50% 70%, #2a2014 0%, #100c08 70%);
 }
 
 .class-card.selected,
