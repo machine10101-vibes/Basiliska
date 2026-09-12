@@ -214,9 +214,12 @@ function pose(anim: AnimName, frame: number, dir: number) {
     armL = Math.sin((frame / 8) * Math.PI * 2) * 1.0;
     armR = -armL;
   }
-  const back = dir === 3 || dir === 4;
+  const fullBack = dir === 4;
+  const peekBack = dir === 3;
+  const back = fullBack || peekBack;
   const profile = dir === 2;
-  return { bob, legL, legR, armL, armR, lean, swing, back, profile, dir };
+  const threeQ = dir === 1;
+  return { bob, legL, legR, armL, armR, lean, swing, back, fullBack, peekBack, profile, threeQ, dir };
 }
 
 type Pose = ReturnType<typeof pose>;
@@ -225,18 +228,22 @@ function drawEye(p: Pix, ex: number, ey: number, pal: Palette, blink: boolean, r
   if (blink) {
     p.hline(ex - rx, ey + 1, rx * 2 + 1, pal.outline);
     p.hline(ex - rx + 1, ey + 2, rx * 2 - 1, pal.skinSh);
+    p.p(ex - rx, ey, pal.outline);
+    p.p(ex + rx, ey, pal.outline);
     return;
   }
-  p.oval(ex, ey, rx, ry, '#fffef8', pal.outline);
-  p.oval(ex, ey + 1, Math.max(2, rx - 1), Math.max(3, ry - 2), pal.eye);
-  p.disc(ex, ey + 1, 2, '#0a0610');
-  p.p(ex - 1, ey - 2, '#ffffff');
+  p.oval(ex, ey, rx, ry, '#ffffff', pal.outline);
+  p.oval(ex, ey + 1, Math.max(2, rx - 1), Math.max(3, ry - 1), pal.eye);
+  p.disc(ex, ey + 2, 2, '#0a0610');
+  p.p(ex - 2, ey - 2, '#ffffff');
+  p.p(ex - 1, ey - 3, '#ffffff');
   p.p(ex - 2, ey - 1, '#ffffff');
-  p.p(ex, ey - 2, '#ffffff');
-  p.p(ex + 1, ey + 3, '#c8d8ff');
+  p.p(ex + 1, ey - 2, '#ffffff');
+  p.p(ex + 2, ey + 3, '#d0e0ff');
   p.hline(ex - rx, ey - ry, rx * 2 + 1, pal.outline);
-  p.p(ex - rx, ey - ry + 1, pal.outline);
-  p.p(ex + rx, ey - ry + 1, pal.outline);
+  p.hline(ex - rx + 1, ey - ry + 1, rx * 2 - 1, pal.outline);
+  p.p(ex - rx - 1, ey - ry + 2, pal.outline);
+  p.p(ex + rx + 1, ey - ry + 2, pal.outline);
 }
 
 function drawFace(
@@ -249,22 +256,27 @@ function drawFace(
   frame: number,
   hat: HatKind,
 ): void {
-  if (po.back) return;
+  if (po.fullBack) return;
   const blink = anim === 'idle' && frame === 7;
   const mad = anim === 'attack';
   const cast = anim === 'cast';
   const ey = hy + 3;
   const hooded = hat === 'hood' || hat === 'wolfhood';
-  const threeQ = po.dir === 1;
-  const twoEyes = !po.profile || hooded;
 
+  if (po.peekBack) {
+    drawEye(p, cx - 10, ey, pal, blink, 4, 6);
+    p.oval(cx - 13, hy + 10, 3, 2, pal.blush);
+    return;
+  }
+
+  const twoEyes = !po.profile || hooded;
   if (twoEyes) {
-    const ox = threeQ ? 2 : 0;
+    const ox = po.threeQ ? 2 : 0;
     drawEye(p, cx - 7 + ox, ey, pal, blink);
     drawEye(p, cx + 7 + ox, ey, pal, blink);
     if (mad) {
-      p.hline(cx - 12 + ox, ey - 8, 5, pal.outline);
-      p.hline(cx + 7 + ox, ey - 8, 5, pal.outline);
+      p.hline(cx - 12 + ox, ey - 9, 5, pal.outline);
+      p.hline(cx + 7 + ox, ey - 9, 5, pal.outline);
     }
   } else {
     drawEye(p, cx - 11, ey, pal, blink, 5, 7);
@@ -272,62 +284,92 @@ function drawFace(
     p.p(cx - 17, hy + 6, pal.skinSh);
   }
 
-  p.oval(cx - 12, hy + 10, 3, 2, pal.blush);
-  p.oval(cx + 12, hy + 10, 3, 2, pal.blush);
-  p.p(cx - 9, hy + 6, pal.skinHi);
-  p.p(cx + 8, hy + 6, pal.skinHi);
+  p.oval(cx - 13, hy + 10, 4, 3, pal.blush);
+  p.oval(cx + 13, hy + 10, 4, 3, pal.blush);
+  p.p(cx - 10, hy + 6, pal.skinHi);
+  p.p(cx + 9, hy + 6, pal.skinHi);
 
   if (cast) {
-    p.oval(cx, hy + 14, 2, 2, pal.outline);
-    p.p(cx, hy + 14, pal.skin);
+    p.oval(cx, hy + 15, 2, 2, pal.outline);
+    p.p(cx, hy + 15, pal.skin);
   } else if (mad) {
-    p.hline(cx - 2, hy + 14, 5, pal.outline);
+    p.hline(cx - 2, hy + 15, 5, pal.outline);
   } else {
-    p.p(cx - 1, hy + 14, pal.skinSh);
-    p.p(cx, hy + 15, pal.skinSh);
-    p.p(cx + 1, hy + 14, pal.skinSh);
+    p.p(cx - 2, hy + 15, pal.skinSh);
+    p.p(cx - 1, hy + 16, pal.skinSh);
+    p.p(cx, hy + 16, pal.skinSh);
+    p.p(cx + 1, hy + 16, pal.skinSh);
+    p.p(cx + 2, hy + 15, pal.skinSh);
   }
 }
 
 function drawHairBack(p: Pix, cx: number, hy: number, pal: Palette, po: Pose, hat: HatKind): void {
   if (hat === 'hood' || hat === 'wolfhood') return;
-  if (po.back) {
-    p.oval(cx, hy - 2, 17, 18, pal.hair, pal.outline);
-    p.oval(cx, hy + 6, 14, 12, pal.hairSh);
+  if (po.fullBack || po.peekBack) {
+    p.oval(cx, hy - 2, 18, 19, pal.hair, pal.outline);
     return;
   }
   if (po.profile) {
-    p.oval(cx + 6, hy - 2, 14, 17, pal.hair, pal.outline);
+    p.oval(cx + 7, hy - 1, 13, 17, pal.hair, pal.outline);
     return;
   }
-  p.oval(cx, hy - 4, 17, 16, pal.hair, pal.outline);
+  p.oval(cx, hy - 6, 17, 14, pal.hair, pal.outline);
   if (pal.cut === 'robe') {
     p.oval(cx - 16, hy + 8, 6, 14, pal.hair, pal.outline);
     p.oval(cx + 16, hy + 8, 6, 14, pal.hair, pal.outline);
   }
 }
 
+function drawBangs(p: Pix, cx: number, hy: number, pal: Palette): void {
+  p.oval(cx - 7, hy - 10, 6, 5, pal.hair, pal.outline);
+  p.oval(cx + 7, hy - 10, 6, 5, pal.hair, pal.outline);
+  p.oval(cx, hy - 12, 5, 4, pal.hair, pal.outline);
+  p.p(cx - 5, hy - 13, pal.hairHi);
+  p.p(cx + 3, hy - 13, pal.hairHi);
+}
+
 function drawHairFront(p: Pix, cx: number, hy: number, pal: Palette, po: Pose, hat: HatKind): void {
-  if (po.back) return;
+  if (po.fullBack) {
+    if (hat === 'hood') {
+      p.oval(cx, hy - 1, 18, 19, pal.cloth, pal.outline);
+      p.oval(cx, hy + 4, 16, 14, pal.clothSh);
+      return;
+    }
+    if (hat === 'wolfhood') {
+      p.oval(cx, hy - 1, 17, 18, '#8a8a94', pal.outline);
+      p.oval(cx, hy + 4, 14, 13, '#6a6a74');
+      p.diamond(cx - 10, hy - 18, 5, 8, '#8a8a94', pal.outline);
+      p.diamond(cx + 10, hy - 18, 5, 8, '#8a8a94', pal.outline);
+      return;
+    }
+    p.oval(cx, hy - 1, 17, 18, pal.hair, pal.outline);
+    p.oval(cx, hy + 4, 15, 13, pal.hair);
+    p.hline(cx - 5, hy - 12, 6, pal.hairHi);
+    return;
+  }
+  if (po.peekBack) {
+    p.oval(cx + 4, hy - 2, 14, 17, pal.hair, pal.outline);
+    p.oval(cx + 6, hy + 4, 11, 12, pal.hair);
+    drawBangs(p, cx + 3, hy, pal);
+    return;
+  }
 
   if (po.profile) {
     p.oval(cx + 8, hy - 10, 10, 6, pal.hair, pal.outline);
-    p.oval(cx + 12, hy + 2, 5, 10, pal.hair, pal.outline);
-    p.hline(cx - 2, hy - 14, 8, pal.hair);
+    p.oval(cx + 13, hy + 2, 5, 11, pal.hair, pal.outline);
+    p.oval(cx - 4, hy - 12, 7, 4, pal.hair, pal.outline);
+    p.hline(cx - 2, hy - 14, 8, pal.hairHi);
     return;
   }
 
-  p.oval(cx, hy - 14, 16, 6, pal.hair, pal.outline);
+  p.oval(cx, hy - 15, 16, 6, pal.hair, pal.outline);
   p.rect(cx - 14, hy - 18, 28, 5, pal.hair);
-  p.oval(cx - 15, hy + 2, 5, 12, pal.hair, pal.outline);
-  p.oval(cx + 15, hy + 2, 5, 12, pal.hair, pal.outline);
+  p.oval(cx - 15, hy + 3, 5, 12, pal.hair, pal.outline);
+  p.oval(cx + 15, hy + 3, 5, 12, pal.hair, pal.outline);
+  if (hat !== 'hood' && hat !== 'wolfhood') drawBangs(p, cx, hy, pal);
+  else p.hline(cx - 8, hy - 12, 16, pal.hair);
   p.hline(cx - 6, hy - 17, 6, pal.hairHi);
   p.p(cx - 5, hy - 18, pal.hairHi);
-
-  if (hat === 'hood' || hat === 'wolfhood') {
-    p.hline(cx - 8, hy - 12, 16, pal.hair);
-    return;
-  }
 
   if (pal.cut !== 'armor' && hat === 'none') {
     p.p(cx + 2, hy - 22, pal.hair);
@@ -336,8 +378,8 @@ function drawHairFront(p: Pix, cx: number, hy: number, pal: Palette, po: Pose, h
     p.p(cx + 3, hy - 22, pal.hairHi);
   }
   if (pal.cut === 'tunic') {
-    p.oval(cx + 17, hy - 2, 6, 12, pal.hair, pal.outline);
-    p.disc(cx + 18, hy + 10, 5, pal.hair, pal.outline);
+    p.oval(cx + 17, hy - 2, 6, 13, pal.hair, pal.outline);
+    p.disc(cx + 18, hy + 11, 5, pal.hair, pal.outline);
     p.p(cx + 16, hy + 8, pal.hairHi);
   }
 }
@@ -353,6 +395,7 @@ function drawHatBack(p: Pix, cx: number, hy: number, pal: Palette, hat: HatKind)
 }
 
 function drawHatFront(p: Pix, cx: number, hy: number, pal: Palette, po: Pose, hat: HatKind): void {
+  if (po.fullBack && (hat === 'hood' || hat === 'wolfhood')) return;
   if (hat === 'hood') {
     p.oval(cx - 18, hy + 3, 5, 12, pal.cloth, pal.outline);
     p.oval(cx + 18, hy + 3, 5, 12, pal.cloth, pal.outline);
@@ -371,6 +414,12 @@ function drawHatFront(p: Pix, cx: number, hy: number, pal: Palette, po: Pose, ha
     return;
   }
   if (hat === 'helm') {
+    if (po.fullBack) {
+      p.oval(cx, hy - 2, 17, 16, pal.clothSh, pal.outline);
+      p.oval(cx, hy - 14, 15, 7, pal.clothHi, pal.outline);
+      p.vline(cx, hy - 22, 8, pal.accent);
+      return;
+    }
     p.oval(cx, hy - 16, 16, 6, pal.clothHi, pal.outline);
     p.rect(cx - 15, hy - 18, 30, 5, pal.clothSh);
     p.hline(cx - 12, hy - 12, 24, pal.accent);
@@ -466,24 +515,24 @@ function drawHuman(
   const boot = pal.clothSh;
   p.oval(cx - 7 + (po.legL | 0), footY - 3, 5, 4, boot, pal.outline);
   p.oval(cx + 7 + (po.legR | 0), footY - 3, 5, 4, boot, pal.outline);
-  p.oval(cx - 6 + (po.legL | 0), footY - 9, 4, 6, pal.cloth, pal.outline);
-  p.oval(cx + 6 + (po.legR | 0), footY - 9, 4, 6, pal.cloth, pal.outline);
+  p.oval(cx - 6 + (po.legL | 0), footY - 8, 4, 5, pal.cloth, pal.outline);
+  p.oval(cx + 6 + (po.legR | 0), footY - 8, 4, 5, pal.cloth, pal.outline);
 
-  const hipY = footY - 16;
-  const chestY = hipY - 10;
-  const hy = chestY - 18;
+  const hipY = footY - 14;
+  const chestY = hipY - 9;
+  const hy = chestY - 20;
   const hand = pal.skin;
 
   drawHatBack(p, cx, hy, pal, gear.hat);
   drawHairBack(p, cx, hy, pal, po, gear.hat);
 
-  if (!po.back) {
+  if (!po.fullBack) {
     drawArm(p, cx - 14, chestY + (po.armL | 0), pal, hand);
   }
 
   drawBody(p, cx, chestY, hipY, pal, po);
 
-  if (gear.shield && !po.back) {
+  if (gear.shield && !po.fullBack) {
     const sx = cx - 17;
     const sy = chestY + 6;
     p.oval(sx, sy, 8, 10, pal.accent, pal.outline);
@@ -492,31 +541,36 @@ function drawHuman(
     p.hline(sx - 2, sy, 5, pal.accent);
   }
 
-  p.oval(cx, hy, 16, 18, pal.skin, pal.outline);
+  p.oval(cx, hy, 17, 19, pal.skin, pal.outline);
 
   if (
     pal.ears !== false &&
+    !po.fullBack &&
     (gear.hat === 'none' || gear.hat === 'circlet' || gear.hat === 'cap')
   ) {
     p.oval(cx - 17, hy + 2, 3, 4, pal.skin, pal.outline);
-    p.oval(cx + 17, hy + 2, 3, 4, pal.skin, pal.outline);
+    if (!po.profile) p.oval(cx + 17, hy + 2, 3, 4, pal.skin, pal.outline);
   }
 
   drawHairFront(p, cx, hy, pal, po, gear.hat);
   drawHatFront(p, cx, hy, pal, po, gear.hat);
 
-  if (!po.back) {
-    p.oval(cx, hy + 2, 12, 13, pal.skin);
-    p.oval(cx - 4, hy - 2, 5, 5, pal.skinHi);
+  if (po.peekBack) {
+    p.oval(cx - 8, hy + 3, 8, 11, pal.skin);
+    p.oval(cx - 10, hy, 4, 4, pal.skinHi);
+    drawFace(p, cx, hy, pal, po, anim, frame, gear.hat);
+  } else if (!po.fullBack) {
+    p.oval(cx, hy + 3, 12, 13, pal.skin);
+    p.oval(cx - 4, hy - 1, 5, 5, pal.skinHi);
     drawFace(p, cx, hy, pal, po, anim, frame, gear.hat);
   }
 
   drawArm(p, cx + 14, chestY + (po.armR | 0), pal, hand);
-  if (po.back) {
+  if (po.fullBack) {
     drawArm(p, cx - 14, chestY + (po.armL | 0), pal, hand);
   }
 
-  drawWeapon(p, gear.weapon, cx, chestY, po.armR, po.swing, po.back, pal);
+  drawWeapon(p, gear.weapon, cx, chestY, po.armR, po.swing, po.fullBack, pal);
 }
 
 function drawWeapon(
@@ -571,49 +625,45 @@ function drawWolf(p: Pix, anim: AnimName, frame: number, dir: number): void {
   const t = (frame / 6) * Math.PI * 2;
   const bob = anim === 'walk' ? Math.abs(Math.sin(t)) * 1.5 : 0;
   const y = 70 - (bob | 0);
-  const left = dir === 4;
-  const hx = left ? 24 : 56;
-  const fur = '#8a8a96';
+  const back = dir === 4;
+  const profile = dir === 2 || dir === 3;
+  const hx = back ? 24 : 54;
+  const fur = '#9a9aa8';
   const dark = '#3a3a48';
   const out = '#14141c';
   p.oval(40, 90, 16, 4, 'rgba(0,0,0,0.3)');
-  p.oval(40, y + 4, 16, 10, fur, out);
-  p.oval(hx, y - 6, 13, 13, fur, out);
-  p.diamond(hx - 8, y - 18, 5, 8, fur, out);
-  p.diamond(hx + 8, y - 18, 5, 8, fur, out);
-  p.diamond(hx - 8, y - 17, 3, 5, '#e8c8c8');
-  p.diamond(hx + 8, y - 17, 3, 5, '#e8c8c8');
-  p.oval(hx + (left ? -8 : 8), y - 4, 7, 5, '#d0d0d8', out);
-  if (!left) {
-    p.oval(hx - 5, y - 7, 4, 5, '#fff8f4', out);
-    p.oval(hx + 4, y - 7, 4, 5, '#fff8f4', out);
-    p.disc(hx - 5, y - 6, 2, '#c04040');
-    p.disc(hx + 4, y - 6, 2, '#c04040');
-    p.p(hx - 6, y - 8, '#ffffff');
-    p.p(hx + 3, y - 8, '#ffffff');
-    p.disc(hx + 8, y - 2, 2, '#1a1018');
-    p.p(hx + 4, y + 2, '#f09090');
-    p.p(hx - 2, y + 2, '#f09090');
-  } else {
-    p.oval(hx - 6, y - 7, 4, 5, '#fff8f4', out);
-    p.disc(hx - 6, y - 6, 2, '#c04040');
-    p.p(hx - 7, y - 8, '#ffffff');
-    p.disc(hx - 10, y - 2, 2, '#1a1018');
+  p.oval(40, y + 6, 15, 9, fur, out);
+  p.oval(hx, y - 8, 14, 14, fur, out);
+  p.diamond(hx - 8, y - 20, 5, 8, fur, out);
+  p.diamond(hx + 8, y - 20, 5, 8, fur, out);
+  p.diamond(hx - 8, y - 19, 3, 5, '#f0c8c8');
+  p.diamond(hx + 8, y - 19, 3, 5, '#f0c8c8');
+  if (!back) {
+    const ex = profile ? hx - 6 : hx;
+    p.oval(ex - 5, y - 10, 5, 6, '#fff8f4', out);
+    if (!profile) p.oval(ex + 5, y - 10, 5, 6, '#fff8f4', out);
+    p.disc(ex - 5, y - 9, 2, '#c04040');
+    if (!profile) p.disc(ex + 5, y - 9, 2, '#c04040');
+    p.p(ex - 6, y - 12, '#ffffff');
+    if (!profile) p.p(ex + 4, y - 12, '#ffffff');
+    p.disc(hx + (profile ? -10 : 6), y - 4, 2, '#1a1018');
+    p.oval(hx - 4, y - 2, 3, 2, '#f09090');
+    p.oval(hx + 4, y - 2, 3, 2, '#f09090');
   }
-  p.rect(26, y + 10, 5, 10 + (Math.sin(t) * 2 | 0), dark);
-  p.rect(34, y + 10, 5, 10 + (-Math.sin(t) * 2 | 0), dark);
-  p.rect(42, y + 10, 5, 10 + (Math.sin(t) * 2 | 0), dark);
-  p.rect(50, y + 10, 5, 10 + (-Math.sin(t) * 2 | 0), dark);
-  p.oval(left ? 58 : 22, y + 2, 5, 4, dark, out);
-  if (anim === 'attack') p.disc(hx + (left ? -10 : 10), y, 3, '#f0d0d0');
+  p.rect(26, y + 12, 5, 10 + (Math.sin(t) * 2 | 0), dark);
+  p.rect(34, y + 12, 5, 10 + (-Math.sin(t) * 2 | 0), dark);
+  p.rect(42, y + 12, 5, 10 + (Math.sin(t) * 2 | 0), dark);
+  p.rect(50, y + 12, 5, 10 + (-Math.sin(t) * 2 | 0), dark);
+  p.oval(back ? 58 : 22, y + 4, 5, 4, dark, out);
+  if (anim === 'attack') p.disc(hx + (back ? -10 : 10), y, 3, '#f0d0d0');
 }
 
 function drawGoblin(p: Pix, anim: AnimName, frame: number, dir: number): void {
   drawHuman(p, GOBLIN_PAL, anim, frame, dir, { weapon: 'club', hat: 'none', shield: false });
   const po = pose(anim, frame, dir);
   const cx = 40 + (po.lean | 0);
-  const hy = 86 - (po.bob | 0) - 16 - 10 - 18;
-  if (anim === 'death') return;
+  const hy = 86 - (po.bob | 0) - 14 - 9 - 20;
+  if (anim === 'death' || po.fullBack) return;
   p.oval(cx - 18, hy - 4, 5, 8, GOBLIN_PAL.skin, GOBLIN_PAL.outline);
   p.oval(cx + 18, hy - 4, 5, 8, GOBLIN_PAL.skin, GOBLIN_PAL.outline);
   p.p(cx - 18, hy - 8, GOBLIN_PAL.skinHi);
@@ -736,6 +786,7 @@ export class SpriteActor {
   readonly group = new THREE.Group();
   readonly sprite: THREE.Sprite;
   facing = 0;
+  faceCam = false;
   kind: SpriteKind;
   gear: Gear;
   pal?: Palette;
@@ -813,6 +864,7 @@ export class SpriteActor {
   }
 
   update(dt: number, camYaw: number): void {
+    if (this.faceCam) this.facing = camYaw + Math.PI;
     if (this.flashT > 0) {
       this.flashT -= dt;
       if (this.flashT <= 0) this.mat.color.setHex(0xffffff);
@@ -873,7 +925,9 @@ export function createNpcSprite(kind: 'herald' | 'smith' | 'alchemist' | 'inn'):
     hat: kind === 'alchemist' ? 'hood' : kind === 'herald' ? 'helm' : kind === 'inn' ? 'cap' : 'none',
     shield: kind === 'herald',
   };
-  return new SpriteActor(kind, gear, NPC_PAL[kind], 2.55, 3.06);
+  const a = new SpriteActor(kind, gear, NPC_PAL[kind], 2.55, 3.06);
+  a.faceCam = true;
+  return a;
 }
 
 export function createMobSprite(kind: 'wolf' | 'goblin' | 'crawler' | 'dummy'): SpriteActor {
