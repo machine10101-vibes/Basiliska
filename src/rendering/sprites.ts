@@ -573,9 +573,11 @@ function drawHuman(
   drawHairFront(p, cx, hy, pal, po, gear.hat);
   drawHatFront(p, cx, hy, pal, po, gear.hat);
   if (holster && !po.fullBack && gear.weapon === 'sword') {
-    p.rect(cx - 22, hy + 8, 8, 4, pal.accent);
-    p.rect(cx - 26, hy + 10, 6, 3, '#5a3a18');
-    p.hline(cx - 22, hy + 7, 8, pal.outline);
+    const hx = po.profile ? cx + 12 : cx - 22;
+    p.rect(hx, hy + 2, 4, 12, '#5a3a18');
+    p.vline(hx - 1, hy + 2, 12, pal.outline);
+    p.vline(hx + 4, hy + 2, 12, pal.outline);
+    p.rect(hx - 3, hy + 12, 10, 4, pal.accent);
   }
 
   if (po.peekBack) {
@@ -625,29 +627,35 @@ function drawHolsteredWeapon(
   po: Pose,
 ): void {
   if (weapon === 'sword') {
-    const x0 = po.profile ? cx + 8 : cx - 18;
-    const y0 = hy + 6;
-    const x1 = po.profile ? cx + 12 : cx - 6;
-    const y1 = hipY + 8;
-    drawDiag(p, x0, y0, x1, y1, 4, '#4a3018', pal.outline);
-    drawDiag(p, x0 + 1, y0, x1 + 1, y1, 2, '#6a4828');
-    p.rect(x0 - 3, y0 - 3, 10, 5, pal.accent);
-    p.rect(x0 - 7, y0 - 1, 7, 3, '#5a3a18');
-    p.hline(x0 - 3, y0 - 4, 10, pal.outline);
+    const hx = po.profile ? cx + 12 : cx - 22;
+    const hy0 = hy + 2;
+    p.rect(hx, hy0 - 6, 4, 16, '#5a3a18');
+    p.vline(hx - 1, hy0 - 6, 16, pal.outline);
+    p.vline(hx + 4, hy0 - 6, 16, pal.outline);
+    p.rect(hx - 3, hy0 + 8, 10, 4, pal.accent);
+    p.hline(hx - 3, hy0 + 7, 10, pal.outline);
+    p.hline(hx - 3, hy0 + 12, 10, pal.outline);
+    drawDiag(p, hx + 1, hy0 + 12, po.profile ? hx + 6 : hx + 10, hipY + 6, 4, '#4a3018', pal.outline);
+    drawDiag(p, hx + 2, hy0 + 12, po.profile ? hx + 7 : hx + 11, hipY + 6, 2, '#6a4828');
   } else if (weapon === 'bow') {
-    const bx = po.profile ? cx + 10 : cx - 18;
-    const by = chestY - 4;
-    for (let i = 0; i < 24; i++) {
-      const ox = ((i - 12) * (i - 12)) / 16;
+    const bx = po.profile ? cx + 12 : cx - 20;
+    const by = hy + 8;
+    for (let i = 0; i < 28; i++) {
+      const ox = ((i - 14) * (i - 14)) / 18;
       p.p(bx - ox, by + i, pal.accent);
       p.p(bx - ox - 1, by + i, pal.outline);
       p.p(bx - ox + 1, by + i, pal.outline);
     }
-    p.rect(cx + (po.profile ? 8 : 10), chestY + 2, 5, 10, '#5a3a18');
-    p.vline(cx + (po.profile ? 10 : 12), chestY - 4, 8, '#d8b070');
-    p.vline(cx + (po.profile ? 11 : 13), chestY - 6, 8, '#d8b070');
-    p.p(cx + (po.profile ? 10 : 12), chestY - 7, '#c04040');
-    p.p(cx + (po.profile ? 11 : 13), chestY - 8, '#c04040');
+    const qx = po.profile ? cx + 6 : cx + 14;
+    p.rect(qx, chestY, 6, 12, '#5a3a18');
+    p.vline(qx - 1, chestY, 12, pal.outline);
+    p.vline(qx + 6, chestY, 12, pal.outline);
+    p.vline(qx + 1, chestY - 8, 10, '#d8b070');
+    p.vline(qx + 3, chestY - 10, 12, '#d8b070');
+    p.vline(qx + 5, chestY - 7, 9, '#d8b070');
+    p.p(qx + 1, chestY - 9, '#c04040');
+    p.p(qx + 3, chestY - 11, '#c04040');
+    p.p(qx + 5, chestY - 8, '#c04040');
   }
 }
 
