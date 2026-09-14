@@ -627,19 +627,21 @@ function drawHolsteredWeapon(
   po: Pose,
 ): void {
   if (weapon === 'sword') {
-    const hx = po.profile ? cx + 14 : cx - 24;
-    const hy0 = hy + 18;
+    const onBack = po.back;
+    const hx = onBack ? cx - 8 : po.profile ? cx + 14 : cx - 24;
+    const hy0 = onBack ? hy + 10 : hy + 18;
     p.rect(hx, hy0 - 10, 4, 14, '#5a3a18');
     p.vline(hx - 1, hy0 - 10, 14, pal.outline);
     p.vline(hx + 4, hy0 - 10, 14, pal.outline);
     p.rect(hx - 3, hy0 + 2, 10, 4, pal.accent);
     p.hline(hx - 3, hy0 + 1, 10, pal.outline);
     p.hline(hx - 3, hy0 + 6, 10, pal.outline);
-    drawDiag(p, hx + 1, hy0 + 6, po.profile ? hx + 6 : hx + 8, hipY + 6, 4, '#4a3018', pal.outline);
-    drawDiag(p, hx + 2, hy0 + 6, po.profile ? hx + 7 : hx + 9, hipY + 6, 2, '#6a4828');
+    const x1 = onBack ? hx + 14 : po.profile ? hx + 6 : hx + 8;
+    drawDiag(p, hx + 1, hy0 + 6, x1, hipY + 6, 4, '#4a3018', pal.outline);
+    drawDiag(p, hx + 2, hy0 + 6, x1 + 1, hipY + 6, 2, '#6a4828');
   } else if (weapon === 'bow') {
-    const bx = po.profile ? cx + 14 : cx - 22;
-    const by = hy + 16;
+    const bx = po.back ? cx + 6 : po.profile ? cx + 14 : cx - 22;
+    const by = po.back ? hy + 10 : hy + 16;
     for (let i = 0; i < 28; i++) {
       const ox = ((i - 14) * (i - 14)) / 18;
       p.p(bx - ox, by + i, pal.accent);
