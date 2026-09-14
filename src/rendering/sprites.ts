@@ -573,11 +573,11 @@ function drawHuman(
   drawHairFront(p, cx, hy, pal, po, gear.hat);
   drawHatFront(p, cx, hy, pal, po, gear.hat);
   if (holster && !po.fullBack && gear.weapon === 'sword') {
-    const hx = po.profile ? cx + 12 : cx - 22;
-    p.rect(hx, hy + 2, 4, 12, '#5a3a18');
-    p.vline(hx - 1, hy + 2, 12, pal.outline);
-    p.vline(hx + 4, hy + 2, 12, pal.outline);
-    p.rect(hx - 3, hy + 12, 10, 4, pal.accent);
+    const hx = po.profile ? cx + 14 : cx - 24;
+    p.rect(hx, hy + 10, 4, 14, '#5a3a18');
+    p.vline(hx - 1, hy + 10, 14, pal.outline);
+    p.vline(hx + 4, hy + 10, 14, pal.outline);
+    p.rect(hx - 3, hy + 22, 10, 4, pal.accent);
   }
 
   if (po.peekBack) {
@@ -627,19 +627,19 @@ function drawHolsteredWeapon(
   po: Pose,
 ): void {
   if (weapon === 'sword') {
-    const hx = po.profile ? cx + 12 : cx - 22;
-    const hy0 = hy + 2;
-    p.rect(hx, hy0 - 6, 4, 16, '#5a3a18');
-    p.vline(hx - 1, hy0 - 6, 16, pal.outline);
-    p.vline(hx + 4, hy0 - 6, 16, pal.outline);
-    p.rect(hx - 3, hy0 + 8, 10, 4, pal.accent);
-    p.hline(hx - 3, hy0 + 7, 10, pal.outline);
-    p.hline(hx - 3, hy0 + 12, 10, pal.outline);
-    drawDiag(p, hx + 1, hy0 + 12, po.profile ? hx + 6 : hx + 10, hipY + 6, 4, '#4a3018', pal.outline);
-    drawDiag(p, hx + 2, hy0 + 12, po.profile ? hx + 7 : hx + 11, hipY + 6, 2, '#6a4828');
+    const hx = po.profile ? cx + 14 : cx - 24;
+    const hy0 = hy + 18;
+    p.rect(hx, hy0 - 10, 4, 14, '#5a3a18');
+    p.vline(hx - 1, hy0 - 10, 14, pal.outline);
+    p.vline(hx + 4, hy0 - 10, 14, pal.outline);
+    p.rect(hx - 3, hy0 + 2, 10, 4, pal.accent);
+    p.hline(hx - 3, hy0 + 1, 10, pal.outline);
+    p.hline(hx - 3, hy0 + 6, 10, pal.outline);
+    drawDiag(p, hx + 1, hy0 + 6, po.profile ? hx + 6 : hx + 8, hipY + 6, 4, '#4a3018', pal.outline);
+    drawDiag(p, hx + 2, hy0 + 6, po.profile ? hx + 7 : hx + 9, hipY + 6, 2, '#6a4828');
   } else if (weapon === 'bow') {
-    const bx = po.profile ? cx + 12 : cx - 20;
-    const by = hy + 8;
+    const bx = po.profile ? cx + 14 : cx - 22;
+    const by = hy + 16;
     for (let i = 0; i < 28; i++) {
       const ox = ((i - 14) * (i - 14)) / 18;
       p.p(bx - ox, by + i, pal.accent);
