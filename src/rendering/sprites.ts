@@ -482,25 +482,27 @@ function drawHatFront(p: Pix, cx: number, hy: number, pal: Palette, po: Pose, ha
 
 function drawBody(p: Pix, cx: number, chestY: number, hipY: number, pal: Palette, po: Pose): void {
   const wrx = po.profile ? 8 : 11;
-  p.oval(cx, hipY + 4, wrx + 4, 10, pal.coat, pal.outline);
+  p.oval(cx, hipY + 2, wrx + 4, 8, pal.coat, pal.outline);
   p.oval(cx, chestY + 1, wrx, 8, pal.coat, pal.outline);
-  p.oval(cx, hipY + 2, wrx + 2, 8, pal.coatHi);
+  p.oval(cx, hipY, wrx + 2, 7, pal.coatHi);
   if (!po.fullBack) {
-    p.rect(cx - 4, chestY - 5, 8, 16, pal.inner);
-    p.vline(cx - 5, chestY - 5, 16, pal.outline);
-    p.vline(cx + 4, chestY - 5, 16, pal.outline);
-    p.vline(cx, chestY - 2, 12, pal.skinSh);
-    p.p(cx - 3, chestY - 4, pal.inner);
-    p.p(cx + 2, chestY - 4, pal.inner);
+    p.rect(cx - 4, chestY - 6, 8, 17, pal.inner);
+    p.vline(cx - 5, chestY - 6, 17, pal.outline);
+    p.vline(cx + 4, chestY - 6, 17, pal.outline);
+    p.vline(cx, chestY - 3, 13, pal.skinSh);
+    p.p(cx - 3, chestY - 5, pal.inner);
+    p.p(cx + 2, chestY - 5, pal.inner);
+    p.hline(cx - 6, chestY - 7, 5, pal.coatHi);
+    p.hline(cx + 1, chestY - 7, 5, pal.coatHi);
   }
   p.rect(cx - 9, hipY, 18, 4, pal.accent);
   p.hline(cx - 9, hipY - 1, 18, pal.outline);
   p.hline(cx - 9, hipY + 3, 18, pal.outline);
   if (!po.profile) {
-    p.oval(cx - 14, chestY + 8, 5, 9, pal.coat, pal.outline);
-    p.oval(cx + 14, chestY + 8, 5, 9, pal.coat, pal.outline);
-    p.p(cx - 14, chestY + 4, pal.inner);
-    p.p(cx + 14, chestY + 4, pal.inner);
+    p.oval(cx - 14, chestY + 7, 5, 8, pal.coat, pal.outline);
+    p.oval(cx + 14, chestY + 7, 5, 8, pal.coat, pal.outline);
+    p.p(cx - 14, chestY + 3, pal.inner);
+    p.p(cx + 14, chestY + 3, pal.inner);
   }
   if (pal.cut === 'armor' && !po.profile) {
     p.oval(cx - 12, chestY - 1, 5, 4, pal.clothHi, pal.outline);
@@ -536,8 +538,10 @@ function drawHuman(
   }
 
   p.oval(40, 92, 12, 3, 'rgba(0,0,0,0.32)');
-  p.oval(cx - 4 + (po.legL | 0), footY - 1, 4, 2, pal.coatSh, pal.outline);
-  p.oval(cx + 4 + (po.legR | 0), footY - 1, 4, 2, pal.coatSh, pal.outline);
+  p.oval(cx - 4 + (po.legL | 0), footY, 5, 2, '#2a1810', pal.outline);
+  p.oval(cx + 4 + (po.legR | 0), footY, 5, 2, '#2a1810', pal.outline);
+  p.p(cx - 4 + (po.legL | 0), footY - 1, '#4a3020');
+  p.p(cx + 4 + (po.legR | 0), footY - 1, '#4a3020');
 
   const hand = pal.skin;
   drawHatBack(p, cx, hy, pal, gear.hat);
@@ -572,7 +576,7 @@ function drawHuman(
 
   drawArm(p, cx + 13, chestY + (po.armR | 0), pal, hand);
   if (po.fullBack) drawArm(p, cx - 13, chestY + (po.armL | 0), pal, hand);
-  drawWeapon(p, gear.weapon, cx, chestY, po.armR, po.swing, po.fullBack, pal);
+  drawWeapon(p, gear.weapon, cx, chestY, hipY, po.armR, po.swing, po.fullBack, pal);
 }
 
 function drawWeapon(
@@ -580,40 +584,44 @@ function drawWeapon(
   weapon: WeaponKind,
   cx: number,
   chestY: number,
+  hipY: number,
   armR: number,
   swing: number,
   back: boolean,
   pal: Palette,
 ): void {
-  const hx = cx + 17;
-  const hy = chestY + 10 + (armR | 0);
-  const lift = (swing * 14) | 0;
+  const hx = cx + 18;
+  const handY = chestY + 10 + (armR | 0);
+  const lift = (swing * 10) | 0;
   if (weapon === 'sword') {
-    const x = hx + (back ? -6 : 0);
-    p.rect(x, hy - 34 - lift, 3, 36, '#dce4ee');
-    p.p(x + 1, hy - 35 - lift, '#dce4ee');
-    p.vline(x - 1, hy - 34 - lift, 36, pal.outline);
-    p.vline(x + 3, hy - 34 - lift, 36, pal.outline);
-    p.rect(x - 5, hy - 2 - lift, 13, 3, pal.accent);
-    p.rect(x, hy + 1 - lift, 3, 6, '#5a3a18');
+    const y = hipY + 1 - lift;
+    const x0 = back ? cx + 6 : cx - 30;
+    p.rect(x0, y, 34, 3, '#dce4ee');
+    p.hline(x0, y - 1, 34, pal.outline);
+    p.hline(x0, y + 3, 34, pal.outline);
+    p.p(x0 - 1, y + 1, '#dce4ee');
+    const guardX = back ? cx + 8 : cx + 4;
+    p.rect(guardX, y - 2, 4, 7, pal.accent);
+    p.rect(guardX + (back ? -6 : 4), y, 7, 3, '#5a3a18');
   } else if (weapon === 'staff') {
-    p.rect(hx + 1, hy - 38 - lift, 3, 44, '#7a5030');
-    p.vline(hx, hy - 38 - lift, 44, pal.outline);
-    p.vline(hx + 4, hy - 38 - lift, 44, pal.outline);
-    p.disc(hx + 2, hy - 40 - lift, 7, pal.accent, pal.outline);
-    p.disc(hx + 2, hy - 40 - lift, 3, '#e8f8ff');
-    p.p(hx + 1, hy - 42 - lift, '#ffffff');
+    const x = hx + 4;
+    p.rect(x, handY - 36 - lift, 3, 42, '#7a5030');
+    p.vline(x - 1, handY - 36 - lift, 42, pal.outline);
+    p.vline(x + 3, handY - 36 - lift, 42, pal.outline);
+    p.disc(x + 1, handY - 38 - lift, 6, pal.accent, pal.outline);
+    p.disc(x + 1, handY - 38 - lift, 3, '#e8f8ff');
+    p.p(x, handY - 40 - lift, '#ffffff');
   } else if (weapon === 'bow') {
-    for (let i = 0; i < 24; i++) {
-      const ox = ((i - 12) * (i - 12)) / 14;
-      p.p(hx + 2 + ox, hy - 26 + i, pal.accent);
-      p.p(hx + 1 + ox, hy - 26 + i, pal.outline);
-      p.p(hx + 3 + ox, hy - 26 + i, pal.outline);
+    for (let i = 0; i < 22; i++) {
+      const ox = ((i - 11) * (i - 11)) / 14;
+      p.p(hx + 6 + ox, handY - 20 + i, pal.accent);
+      p.p(hx + 5 + ox, handY - 20 + i, pal.outline);
+      p.p(hx + 7 + ox, handY - 20 + i, pal.outline);
     }
-    p.vline(hx + 11, hy - 20, 16, '#f0e0c0');
+    p.vline(hx + 14, handY - 16, 14, '#f0e0c0');
   } else if (weapon === 'club') {
-    p.rect(hx, hy - 10, 4, 18, '#5a3a18');
-    p.disc(hx + 2, hy - 14, 7, '#6a4a22', pal.outline);
+    p.rect(hx + 2, handY - 10, 4, 16, '#5a3a18');
+    p.disc(hx + 4, handY - 14, 6, '#6a4a22', pal.outline);
   }
 }
 
