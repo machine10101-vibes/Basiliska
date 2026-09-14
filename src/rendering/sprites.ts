@@ -286,7 +286,6 @@ function drawEye(p: Pix, ex: number, ey: number, pal: Palette, blink: boolean, r
   p.p(ex + 2, ey + 6, '#d8e4ff');
   p.hline(ex - rx - 1, ey - ry, rx * 2 + 3, pal.outline);
   p.hline(ex - rx, ey - ry + 1, rx * 2 + 1, pal.outline);
-  p.hline(ex - rx + 1, ey - ry + 2, rx * 2 - 1, pal.outline);
   p.p(ex - rx - 1, ey - ry + 2, pal.outline);
   p.p(ex + rx + 1, ey - ry + 2, pal.outline);
   p.p(ex - rx, ey + ry - 1, pal.outline);
@@ -365,54 +364,45 @@ function drawHairBack(p: Pix, cx: number, hy: number, pal: Palette, po: Pose, ha
 
 function drawHairSpikes(p: Pix, cx: number, hy: number, pal: Palette): void {
   if (pal.cut === 'armor') {
-    p.diamond(cx - 14, hy - 22, 6, 10, pal.hair, pal.outline);
-    p.diamond(cx - 6, hy - 30, 6, 13, pal.hair, pal.outline);
-    p.diamond(cx + 2, hy - 32, 7, 14, pal.hair, pal.outline);
-    p.diamond(cx + 11, hy - 28, 6, 12, pal.hair, pal.outline);
-    p.diamond(cx + 18, hy - 18, 5, 9, pal.hair, pal.outline);
-    p.diamond(cx - 20, hy - 12, 6, 9, pal.hair, pal.outline);
-    p.diamond(cx + 20, hy - 8, 5, 8, pal.hair, pal.outline);
-    p.diamond(cx - 10, hy - 14, 5, 8, pal.hairSh);
-    p.diamond(cx + 6, hy - 18, 4, 7, pal.hairSh);
-    p.p(cx - 4, hy - 26, pal.hairHi);
-    p.p(cx + 4, hy - 28, pal.hairHi);
-    p.p(cx + 12, hy - 22, pal.hairHi);
+    p.diamond(cx - 16, hy - 14, 5, 8, pal.hair, pal.outline);
+    p.diamond(cx - 7, hy - 22, 5, 9, pal.hair, pal.outline);
+    p.diamond(cx + 4, hy - 24, 6, 10, pal.hair, pal.outline);
+    p.diamond(cx + 14, hy - 16, 5, 8, pal.hair, pal.outline);
+    p.diamond(cx + 20, hy - 6, 5, 7, pal.hair, pal.outline);
+    p.diamond(cx - 20, hy - 4, 5, 7, pal.hair, pal.outline);
+    p.p(cx - 4, hy - 20, pal.hairHi);
+    p.p(cx + 6, hy - 22, pal.hairHi);
+    p.p(cx + 14, hy - 14, pal.hairHi);
   } else if (pal.cut === 'robe') {
     p.oval(cx - 22, hy + 12, 9, 20, pal.hair, pal.outline);
     p.oval(cx + 22, hy + 12, 9, 20, pal.hair, pal.outline);
     p.oval(cx - 21, hy + 24, 8, 10, pal.hairSh, pal.outline);
     p.oval(cx + 21, hy + 24, 8, 10, pal.hairSh, pal.outline);
-    p.diamond(cx - 12, hy - 22, 6, 9, pal.hair, pal.outline);
-    p.diamond(cx, hy - 26, 6, 10, pal.hair, pal.outline);
-    p.diamond(cx + 12, hy - 22, 6, 9, pal.hair, pal.outline);
-    p.oval(cx - 16, hy - 8, 7, 8, pal.hair, pal.outline);
-    p.oval(cx + 16, hy - 8, 7, 8, pal.hair, pal.outline);
-    p.p(cx - 10, hy - 18, pal.hairHi);
-    p.p(cx + 8, hy - 20, pal.hairHi);
+    p.diamond(cx - 11, hy - 18, 5, 8, pal.hair, pal.outline);
+    p.diamond(cx + 2, hy - 20, 5, 8, pal.hair, pal.outline);
+    p.diamond(cx + 12, hy - 16, 5, 7, pal.hair, pal.outline);
+    p.p(cx - 8, hy - 16, pal.hairHi);
+    p.p(cx + 8, hy - 16, pal.hairHi);
   } else {
-    p.diamond(cx - 8, hy - 22, 5, 9, pal.hair, pal.outline);
-    p.diamond(cx + 2, hy - 26, 6, 11, pal.hair, pal.outline);
-    p.diamond(cx + 10, hy - 20, 5, 8, pal.hair, pal.outline);
+    p.diamond(cx - 6, hy - 18, 4, 7, pal.hair, pal.outline);
+    p.diamond(cx + 4, hy - 20, 5, 8, pal.hair, pal.outline);
     p.oval(cx + 20, hy + 2, 8, 14, pal.hair, pal.outline);
     p.disc(cx + 21, hy + 16, 7, pal.hair, pal.outline);
     p.oval(cx - 18, hy - 2, 7, 10, pal.hair, pal.outline);
     p.p(cx + 18, hy + 6, pal.hairHi);
-    p.p(cx + 2, hy - 24, pal.hairHi);
+    p.p(cx + 2, hy - 18, pal.hairHi);
   }
 }
 
 function drawBangs(p: Pix, cx: number, hy: number, pal: Palette, po: Pose): void {
   if (po.profile) {
-    p.diamond(cx - 6, hy - 6, 5, 10, pal.hair, pal.outline);
-    p.diamond(cx - 1, hy - 8, 4, 8, pal.hair, pal.outline);
+    p.diamond(cx - 5, hy - 10, 4, 7, pal.hair, pal.outline);
     return;
   }
-  p.diamond(cx - 10, hy - 4, 5, 9, pal.hair, pal.outline);
-  p.diamond(cx - 3, hy - 8, 5, 10, pal.hair, pal.outline);
-  p.diamond(cx + 4, hy - 8, 5, 10, pal.hair, pal.outline);
-  p.diamond(cx + 11, hy - 4, 5, 9, pal.hair, pal.outline);
-  p.p(cx - 2, hy - 10, pal.hairHi);
-  p.p(cx + 5, hy - 10, pal.hairHi);
+  p.diamond(cx - 9, hy - 10, 4, 7, pal.hair, pal.outline);
+  p.diamond(cx, hy - 12, 4, 7, pal.hair, pal.outline);
+  p.diamond(cx + 9, hy - 10, 4, 7, pal.hair, pal.outline);
+  p.p(cx - 1, hy - 14, pal.hairHi);
 }
 
 function drawHairFront(p: Pix, cx: number, hy: number, pal: Palette, po: Pose, hat: HatKind): void {
@@ -436,7 +426,7 @@ function drawHairFront(p: Pix, cx: number, hy: number, pal: Palette, po: Pose, h
     return;
   }
 
-  p.oval(cx + (po.profile ? 5 : 0), hy - 8, 20, 15, pal.hair, pal.outline);
+  p.oval(cx + (po.profile ? 5 : 0), hy - 8, 18, 12, pal.hair, pal.outline);
   drawHairSpikes(p, cx, hy, pal);
   drawBangs(p, cx, hy, pal, po);
 }
