@@ -217,7 +217,7 @@ const GOBLIN_PAL: Palette = {
 const W = 80;
 const H = 96;
 
-function pose(anim: AnimName, frame: number, dir: number) {
+function pose(anim: AnimName, frame: number, dir: number, weapon: WeaponKind = 'none') {
   let bob =
     anim === 'walk' ? Math.abs(Math.sin((frame / 6) * Math.PI * 2)) * 2.2
     : anim === 'idle' ? Math.sin((frame / 8) * Math.PI * 2) * 0.8
@@ -238,9 +238,15 @@ function pose(anim: AnimName, frame: number, dir: number) {
   } else if (anim === 'attack') {
     const u = frame / 5;
     swing = u < 0.35 ? u / 0.35 : 1 - (u - 0.35) / 0.65;
-    armR = -8 + swing * 16;
-    lean = swing * 3;
-    armL = -swing * 2;
+    if (weapon === 'bow') {
+      armL = -6;
+      armR = -4 - swing * 3;
+      lean = swing * 2;
+    } else {
+      armR = -10 + swing * 18;
+      lean = swing * 3;
+      armL = -swing * 2;
+    }
   } else if (anim === 'cast') {
     const u = frame / 5;
     armL = -10 - u * 2;
@@ -522,8 +528,10 @@ function drawHuman(
   dir: number,
   gear: Gear,
 ): void {
-  const po = pose(anim, frame, dir);
+  const po = pose(anim, frame, dir, gear.weapon);
   const { cx, footY, hipY, chestY, hy } = bodyLayout(po);
+  const wielding = anim === 'attack' || anim === 'cast';
+  const holster = !wielding && (gear.weapon === 'sword' || gear.weapon === 'bow');
 
   if (anim === 'death') {
     p.oval(40, 90, 16, 4, 'rgba(0,0,0,0.28)');
@@ -544,9 +552,11 @@ function drawHuman(
   const hand = pal.skin;
   drawHatBack(p, cx, hy, pal, gear.hat);
   drawHairBack(p, cx, hy, pal, po, gear.hat);
+  if (holster && !po.back) drawHolsteredWeapon(p, gear.weapon, cx, hy, chestY, hipY, pal, po);
 
   if (!po.fullBack) drawArm(p, cx - 12, chestY + (po.armL | 0), pal, hand);
   drawBody(p, cx, chestY, hipY, pal, po);
+  if (holster && po.back) drawHolsteredWeapon(p, gear.weapon, cx, hy, chestY, hipY, pal, po);
 
   if (gear.shield && !po.fullBack) {
     p.oval(cx - 16, chestY + 6, 7, 9, pal.accent, pal.outline);
@@ -562,6 +572,11 @@ function drawHuman(
 
   drawHairFront(p, cx, hy, pal, po, gear.hat);
   drawHatFront(p, cx, hy, pal, po, gear.hat);
+  if (holster && !po.fullBack && gear.weapon === 'sword') {
+    p.rect(cx - 22, hy + 8, 8, 4, pal.accent);
+    p.rect(cx - 26, hy + 10, 6, 3, '#5a3a18');
+    p.hline(cx - 22, hy + 7, 8, pal.outline);
+  }
 
   if (po.peekBack) {
     p.oval(cx - 9, hy + 8, 9, 13, pal.skin);
@@ -574,52 +589,134 @@ function drawHuman(
 
   drawArm(p, cx + 12, chestY + (po.armR | 0), pal, hand);
   if (po.fullBack) drawArm(p, cx - 12, chestY + (po.armL | 0), pal, hand);
-  drawWeapon(p, gear.weapon, cx, chestY, hipY, po.armR, po.swing, po.fullBack, pal);
+  if (!holster) drawWieldedWeapon(p, gear.weapon, cx, hy, chestY, hipY, pal, po, anim);
 }
 
-function drawWeapon(
+function drawDiag(
+  p: Pix,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  thick: number,
+  fill: string,
+  line?: string,
+): void {
+  const steps = Math.max(1, Math.abs(x1 - x0), Math.abs(y1 - y0));
+  for (let i = 0; i <= steps; i++) {
+    const px = x0 + Math.round(((x1 - x0) * i) / steps);
+    const py = y0 + Math.round(((y1 - y0) * i) / steps);
+    if (line) {
+      p.p(px - 1, py, line);
+      p.p(px + thick, py, line);
+    }
+    for (let t = 0; t < thick; t++) p.p(px + t, py, fill);
+  }
+}
+
+function drawHolsteredWeapon(
   p: Pix,
   weapon: WeaponKind,
   cx: number,
+  hy: number,
   chestY: number,
   hipY: number,
-  armR: number,
-  swing: number,
-  back: boolean,
   pal: Palette,
+  po: Pose,
 ): void {
-  const hx = cx + 18;
-  const handY = chestY + 10 + (armR | 0);
-  const lift = (swing * 10) | 0;
   if (weapon === 'sword') {
-    const y = hipY + 4 - lift;
-    const x0 = back ? cx + 6 : cx - 30;
-    p.rect(x0, y, 34, 3, '#dce4ee');
-    p.hline(x0, y - 1, 34, pal.outline);
-    p.hline(x0, y + 3, 34, pal.outline);
-    p.p(x0 - 1, y + 1, '#dce4ee');
-    const guardX = back ? cx + 8 : cx + 4;
-    p.rect(guardX, y - 2, 4, 7, pal.accent);
-    p.rect(guardX + (back ? -6 : 4), y, 7, 3, '#5a3a18');
-  } else if (weapon === 'staff') {
-    const x = hx + 4;
-    p.rect(x, handY - 36 - lift, 3, 42, '#7a5030');
-    p.vline(x - 1, handY - 36 - lift, 42, pal.outline);
-    p.vline(x + 3, handY - 36 - lift, 42, pal.outline);
-    p.disc(x + 1, handY - 38 - lift, 6, pal.accent, pal.outline);
-    p.disc(x + 1, handY - 38 - lift, 3, '#e8f8ff');
-    p.p(x, handY - 40 - lift, '#ffffff');
+    const x0 = po.profile ? cx + 8 : cx - 18;
+    const y0 = hy + 6;
+    const x1 = po.profile ? cx + 12 : cx - 6;
+    const y1 = hipY + 8;
+    drawDiag(p, x0, y0, x1, y1, 4, '#4a3018', pal.outline);
+    drawDiag(p, x0 + 1, y0, x1 + 1, y1, 2, '#6a4828');
+    p.rect(x0 - 3, y0 - 3, 10, 5, pal.accent);
+    p.rect(x0 - 7, y0 - 1, 7, 3, '#5a3a18');
+    p.hline(x0 - 3, y0 - 4, 10, pal.outline);
   } else if (weapon === 'bow') {
-    for (let i = 0; i < 22; i++) {
-      const ox = ((i - 11) * (i - 11)) / 14;
-      p.p(hx + 6 + ox, handY - 20 + i, pal.accent);
-      p.p(hx + 5 + ox, handY - 20 + i, pal.outline);
-      p.p(hx + 7 + ox, handY - 20 + i, pal.outline);
+    const bx = po.profile ? cx + 10 : cx - 18;
+    const by = chestY - 4;
+    for (let i = 0; i < 24; i++) {
+      const ox = ((i - 12) * (i - 12)) / 16;
+      p.p(bx - ox, by + i, pal.accent);
+      p.p(bx - ox - 1, by + i, pal.outline);
+      p.p(bx - ox + 1, by + i, pal.outline);
     }
-    p.vline(hx + 14, handY - 16, 14, '#f0e0c0');
+    p.rect(cx + (po.profile ? 8 : 10), chestY + 2, 5, 10, '#5a3a18');
+    p.vline(cx + (po.profile ? 10 : 12), chestY - 4, 8, '#d8b070');
+    p.vline(cx + (po.profile ? 11 : 13), chestY - 6, 8, '#d8b070');
+    p.p(cx + (po.profile ? 10 : 12), chestY - 7, '#c04040');
+    p.p(cx + (po.profile ? 11 : 13), chestY - 8, '#c04040');
+  }
+}
+
+function drawWieldedWeapon(
+  p: Pix,
+  weapon: WeaponKind,
+  cx: number,
+  hy: number,
+  chestY: number,
+  hipY: number,
+  pal: Palette,
+  po: Pose,
+  anim: AnimName,
+): void {
+  const rightX = cx + 12;
+  const rightY = chestY + 9 + (po.armR | 0);
+  const leftX = cx - 12;
+  const leftY = chestY + 9 + (po.armL | 0);
+  const swing = po.swing;
+  if (weapon === 'sword') {
+    let tx: number;
+    let ty: number;
+    if (swing < 0.35) {
+      tx = rightX + (po.profile ? -6 : 6);
+      ty = rightY - 30;
+    } else if (swing < 0.7) {
+      tx = rightX + (po.profile ? -32 : 30);
+      ty = rightY - 4;
+    } else {
+      tx = rightX + (po.profile ? -18 : 16);
+      ty = rightY + 16;
+    }
+    drawDiag(p, rightX, rightY - 1, tx, ty, 3, '#dce4ee', pal.outline);
+    p.rect(rightX - 3, rightY - 3, 7, 7, pal.accent);
+    p.disc(rightX, rightY, 3, pal.skin, pal.outline);
+    p.p(rightX - 1, rightY - 1, pal.skinHi);
+  } else if (weapon === 'staff') {
+    const lift = (swing * 10) | 0;
+    const x = rightX + 4;
+    p.rect(x, rightY - 36 - lift, 3, 42, '#7a5030');
+    p.vline(x - 1, rightY - 36 - lift, 42, pal.outline);
+    p.vline(x + 3, rightY - 36 - lift, 42, pal.outline);
+    p.disc(x + 1, rightY - 38 - lift, 6, pal.accent, pal.outline);
+    p.disc(x + 1, rightY - 38 - lift, 3, '#e8f8ff');
+    p.p(x, rightY - 40 - lift, '#ffffff');
+  } else if (weapon === 'bow') {
+    const gx = leftX;
+    const gy = leftY;
+    for (let i = -13; i <= 13; i++) {
+      const ox = (i * i) / 16;
+      p.p(gx - 3 - ox, gy + i, pal.accent);
+      p.p(gx - 4 - ox, gy + i, pal.outline);
+      p.p(gx - 2 - ox, gy + i, pal.outline);
+    }
+    p.vline(gx + 5, gy - 10, 20, '#f0e0c0');
+    p.p(gx + 5, gy - 11, pal.outline);
+    p.p(gx + 5, gy + 10, pal.outline);
+    const draw = anim === 'attack' ? (6 + ((swing * 4) | 0)) : 2;
+    p.hline(gx - 10, gy, 18 + draw, '#e8d0a0');
+    p.p(gx - 11, gy, pal.outline);
+    p.p(gx - 12, gy - 1, '#c04040');
+    p.p(gx - 12, gy + 1, '#c04040');
+    p.p(gx + 8 + draw, gy, '#dce4ee');
+    p.p(gx + 9 + draw, gy, pal.outline);
+    p.disc(gx, gy, 3, pal.skin, pal.outline);
+    p.disc(rightX - 2, gy, 3, pal.skin, pal.outline);
   } else if (weapon === 'club') {
-    p.rect(hx + 2, handY - 10, 4, 16, '#5a3a18');
-    p.disc(hx + 4, handY - 14, 6, '#6a4a22', pal.outline);
+    p.rect(rightX, rightY - 10, 4, 16, '#5a3a18');
+    p.disc(rightX + 2, rightY - 14, 6, '#6a4a22', pal.outline);
   }
 }
 
