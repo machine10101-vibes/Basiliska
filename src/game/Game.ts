@@ -944,7 +944,7 @@ export class Game {
       } else {
         this.player.position.x += (dx / dist) * speed * dt;
         this.player.position.z += (dz / dist) * speed * dt;
-        this.playerActor.turnToward(Math.atan2(dx, dz), dt);
+        this.playerActor.turnToward(Math.atan2(dx, dz), dt, 6);
         moving = true;
       }
     } else if (this.activity.type === 'gather') {
@@ -973,12 +973,13 @@ export class Game {
         const dz = t.mesh.position.z - this.player.position.z;
         const dist = Math.hypot(dx, dz);
         const reach = CLASS_META[this.save.heroClass].attackRange;
-        this.playerActor.turnToward(Math.atan2(dx, dz), dt, 10);
         if (dist > reach + 0.35) {
           this.player.position.x += (dx / dist) * speed * dt;
           this.player.position.z += (dz / dist) * speed * dt;
+          this.playerActor.turnToward(Math.atan2(dx, dz), dt, 6);
           moving = true;
         } else {
+          this.playerActor.turnToward(Math.atan2(dx, dz), dt, 9);
           this.activity.cooldown -= dt;
           if (this.activity.cooldown <= 0 && this.activity.swingT <= 0) {
             this.activity.swingT = 0.001;
@@ -1000,7 +1001,7 @@ export class Game {
             }
             if (this.activity.swingT >= PLAYER_ATTACK_DURATION) {
               this.activity.swingT = 0;
-              this.activity.cooldown = 0.55;
+              this.activity.cooldown = 0.48;
               this.playerActor.setAnim('idle');
             }
           }
@@ -1009,9 +1010,10 @@ export class Game {
       }
     }
 
-    this.moveBlend += ((moving ? 1 : 0) - this.moveBlend) * Math.min(1, dt * 8);
+    this.moveBlend += ((moving ? 1 : 0) - this.moveBlend) * Math.min(1, dt * 5);
+    this.playerActor.setMoveBlend(this.moveBlend);
     if (this.activity.type !== 'combat' || this.activity.swingT <= 0) {
-      this.playerActor.setAnim(this.moveBlend > 0.08 ? 'walk' : 'idle');
+      this.playerActor.setAnim(this.moveBlend > 0.1 ? 'walk' : 'idle');
     }
 
     this.mobThink(dt);

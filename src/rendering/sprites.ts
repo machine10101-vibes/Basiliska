@@ -216,63 +216,159 @@ const GOBLIN_PAL: Palette = {
 
 const W = 80;
 const H = 96;
+const GROUND_Y = 91;
 
-function pose(anim: AnimName, frame: number, dir: number, weapon: WeaponKind = 'none') {
+const FRAMES: Record<AnimName, number> = {
+  idle: 8,
+  walk: 24,
+  attack: 16,
+  cast: 12,
+  death: 4,
+};
+
+function clamp01(t: number): number {
+  return t < 0 ? 0 : t > 1 ? 1 : t;
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function smoothstep(t: number): number {
+  const x = clamp01(t);
+  return x * x * (3 - 2 * x);
+}
+
+function sampleKeys(u: number, keys: number[][]): number[] {
+  const t = clamp01(u);
+  if (t <= keys[0][0]) return keys[0].slice(1);
+  for (let i = 1; i < keys.length; i++) {
+    if (t <= keys[i][0]) {
+      const a = keys[i - 1];
+      const b = keys[i];
+      const k = smoothstep((t - a[0]) / (b[0] - a[0] || 1));
+      return a.slice(1).map((v, j) => lerp(v, b[j + 1], k));
+    }
+  }
+  return keys[keys.length - 1].slice(1);
+}
+
+function pose(anim: AnimName, frame: number, dir: number, weapon: WeaponKind = 'none', gait = 1) {
+  const n = FRAMES[anim];
+  const u = n > 0 ? frame / n : 0;
   let bob =
-    anim === 'walk' ? Math.abs(Math.sin((frame / 6) * Math.PI * 2)) * 2.2
-    : anim === 'idle' ? Math.sin((frame / 8) * Math.PI * 2) * 0.8
+    anim === 'idle' ? Math.sin(u * Math.PI * 2) * 0.7
     : anim === 'death' ? frame * 3
     : 0;
   let legL = 0;
   let legR = 0;
+  let liftL = 0;
+  let liftR = 0;
   let armL = 0;
   let armR = 0;
   let lean = 0;
   let swing = 0;
   if (anim === 'walk') {
-    const t = (frame / 6) * Math.PI * 2;
-    legL = Math.sin(t) * 3;
-    legR = -Math.sin(t) * 3;
-    armL = -Math.sin(t) * 3;
-    armR = Math.sin(t) * 3;
+    const t = u * Math.PI * 2;
+    const amp = 0.42 + 0.58 * clamp01(gait);
+    const stride = Math.sin(t);
+    const pass = Math.cos(t);
+    bob = Math.abs(pass) * 2.05 * amp;
+    legL = stride * 4.3 * amp;
+    legR = -stride * 4.3 * amp;
+    liftL = Math.max(0, pass) * 3.5 * amp;
+    liftR = Math.max(0, -pass) * 3.5 * amp;
+    const arm = Math.sin(t - 0.22);
+    armL = -arm * 2.85 * amp;
+    armR = arm * 2.85 * amp;
+    lean = pass * 1.2 * amp;
   } else if (anim === 'attack') {
-    const u = frame / 5;
-    swing = u < 0.35 ? u / 0.35 : 1 - (u - 0.35) / 0.65;
+    swing = clamp01(u);
     if (weapon === 'bow') {
-      armL = -6;
-      armR = -4 - swing * 3;
-      lean = swing * 2;
+      [armL, armR, lean] = sampleKeys(swing, [
+        [0.0, 0, 0, 0],
+        [0.38, -6, -9, 1.6],
+        [0.5, -6, -10, 1.8],
+        [0.58, -6, -1, 0.6],
+        [0.78, -3, 0, 0.2],
+        [1.0, 0, 0, 0],
+      ]);
+      legR = 2;
+      legL = -1.5;
+    } else if (weapon === 'staff') {
+      [armR, armL, lean, bob] = sampleKeys(swing, [
+        [0.0, 0, 0, 0, 0],
+        [0.2, -12, -5, -1.2, 1.2],
+        [0.36, -5, -2, 3.2, 0],
+        [0.5, -8, -3, 2.2, 0.8],
+        [0.78, -3, -1, 0.6, 0.2],
+        [1.0, 0, 0, 0, 0],
+      ]);
+      legR = lerp(0, 2.5, smoothstep(Math.min(1, swing * 2.2)));
+      legL = -legR * 0.7;
     } else {
-      armR = -10 + swing * 18;
-      lean = swing * 3;
-      armL = -swing * 2;
+      [armR, armL, lean, legR, legL] = sampleKeys(swing, [
+        [0.0, 0, 0, 0, 0, 0],
+        [0.16, -12, -3.5, -2.2, 2.2, -3.2],
+        [0.28, -6, -2, 0.8, 3.2, -3.4],
+        [0.38, 9, 2.5, 4.2, 4, -2.4],
+        [0.52, 13, 2, 3.2, 3.2, -2],
+        [0.74, 4, 0.4, 1, 1.2, -0.8],
+        [1.0, 0, 0, 0, 0, 0],
+      ]);
+      if (swing > 0.34 && swing < 0.48) {
+        const dip = 1 - Math.abs((swing - 0.41) / 0.07);
+        bob -= 1.15 * dip;
+      }
     }
   } else if (anim === 'cast') {
-    const u = frame / 5;
-    armL = -10 - u * 2;
-    armR = -10 - u * 2;
-    bob += u * 1.8;
+    swing = clamp01(u);
+    [armL, armR, bob] = sampleKeys(swing, [
+      [0.0, 0, 0, 0],
+      [0.32, -12, -12, 1.8],
+      [0.52, -14, -14, 2.6],
+      [0.68, -8, -10, 1.1],
+      [1.0, -2, -2, 0.2],
+    ]);
+    lean = Math.sin(swing * Math.PI) * 1.1;
   } else if (anim === 'idle') {
-    armL = Math.sin((frame / 8) * Math.PI * 2) * 1.0;
+    const t = u * Math.PI * 2;
+    armL = Math.sin(t) * 0.95;
     armR = -armL;
+    lean = Math.sin(t * 0.5) * 0.35;
   }
   const fullBack = dir === 4;
   const peekBack = dir === 3;
   const back = fullBack || peekBack;
   const profile = dir === 2;
   const threeQ = dir === 1;
-  return { bob, legL, legR, armL, armR, lean, swing, back, fullBack, peekBack, profile, threeQ, dir };
+  return {
+    bob,
+    legL,
+    legR,
+    liftL,
+    liftR,
+    armL,
+    armR,
+    lean,
+    swing,
+    back,
+    fullBack,
+    peekBack,
+    profile,
+    threeQ,
+    dir,
+  };
 }
 
 type Pose = ReturnType<typeof pose>;
 
 function bodyLayout(po: Pose) {
-  const cx = 40 + (po.lean | 0);
-  const footY = 91 - (po.bob | 0);
-  const hipY = footY - 10;
+  const cx = 40 + Math.round(po.lean);
+  const hipY = GROUND_Y - 10 - Math.round(po.bob);
   const chestY = hipY - 7;
-  const hy = footY - 44;
-  return { cx, footY, hipY, chestY, hy };
+  const hy = hipY - 34;
+  return { cx, footY: GROUND_Y, hipY, chestY, hy };
 }
 
 function drawEye(p: Pix, ex: number, ey: number, pal: Palette, blink: boolean, rx = 8, ry = 10): void {
@@ -309,7 +405,7 @@ function drawFace(
   hat: HatKind,
 ): void {
   if (po.fullBack) return;
-  const blink = anim === 'idle' && frame === 7;
+  const blink = anim === 'idle' && Math.floor(frame) % 8 === 7;
   const mad = anim === 'attack';
   const cast = anim === 'cast';
   const ey = hy + 10;
@@ -520,6 +616,30 @@ function drawArm(p: Pix, x: number, y: number, pal: Palette, hand: string): void
   p.p(x - 1, y + 8, pal.skinHi);
 }
 
+function drawStride(p: Pix, cx: number, hipY: number, pal: Palette, po: Pose): void {
+  const sep = po.profile ? 2 : 5;
+  const lfx = cx - sep + Math.round(po.legL);
+  const rfx = cx + sep + Math.round(po.legR);
+  const lfy = GROUND_Y - Math.round(po.liftL);
+  const rfy = GROUND_Y - Math.round(po.liftR);
+  const shin = (fx: number, fy: number) => {
+    const top = hipY + 5;
+    const h = Math.max(4, fy - top);
+    p.rect(fx - 2, top, 4, h, pal.cloth);
+    p.vline(fx - 3, top, h, pal.outline);
+    p.vline(fx + 2, top, h, pal.outline);
+    p.oval(fx, fy, 5, 2, '#2a1810', pal.outline);
+    p.p(fx - 1, fy - 1, '#4a3020');
+  };
+  if (po.liftL >= po.liftR) {
+    shin(lfx, lfy);
+    shin(rfx, rfy);
+  } else {
+    shin(rfx, rfy);
+    shin(lfx, lfy);
+  }
+}
+
 function drawHuman(
   p: Pix,
   pal: Palette,
@@ -527,9 +647,10 @@ function drawHuman(
   frame: number,
   dir: number,
   gear: Gear,
+  gait = 1,
 ): void {
-  const po = pose(anim, frame, dir, gear.weapon);
-  const { cx, footY, hipY, chestY, hy } = bodyLayout(po);
+  const po = pose(anim, frame, dir, gear.weapon, gait);
+  const { cx, hipY, chestY, hy } = bodyLayout(po);
   const wielding = anim === 'attack' || anim === 'cast';
   const holster = !wielding && (gear.weapon === 'sword' || gear.weapon === 'bow');
 
@@ -544,17 +665,14 @@ function drawHuman(
   }
 
   p.oval(40, 92, 12, 3, 'rgba(0,0,0,0.32)');
-  p.oval(cx - 4 + (po.legL | 0), footY, 5, 2, '#2a1810', pal.outline);
-  p.oval(cx + 4 + (po.legR | 0), footY, 5, 2, '#2a1810', pal.outline);
-  p.p(cx - 4 + (po.legL | 0), footY - 1, '#4a3020');
-  p.p(cx + 4 + (po.legR | 0), footY - 1, '#4a3020');
+  drawStride(p, cx, hipY, pal, po);
 
   const hand = pal.skin;
   drawHatBack(p, cx, hy, pal, gear.hat);
   drawHairBack(p, cx, hy, pal, po, gear.hat);
   if (holster && !po.back) drawHolsteredWeapon(p, gear.weapon, cx, hy, chestY, hipY, pal, po);
 
-  if (!po.fullBack) drawArm(p, cx - 12, chestY + (po.armL | 0), pal, hand);
+  if (!po.fullBack) drawArm(p, cx - 12, chestY + Math.round(po.armL), pal, hand);
   drawBody(p, cx, chestY, hipY, pal, po);
   if (holster && po.back) drawHolsteredWeapon(p, gear.weapon, cx, hy, chestY, hipY, pal, po);
 
@@ -589,8 +707,8 @@ function drawHuman(
     drawFace(p, cx, hy, pal, po, anim, frame, gear.hat);
   }
 
-  drawArm(p, cx + 12, chestY + (po.armR | 0), pal, hand);
-  if (po.fullBack) drawArm(p, cx - 12, chestY + (po.armL | 0), pal, hand);
+  drawArm(p, cx + 12, chestY + Math.round(po.armR), pal, hand);
+  if (po.fullBack) drawArm(p, cx - 12, chestY + Math.round(po.armL), pal, hand);
   if (!holster) drawWieldedWeapon(p, gear.weapon, cx, hy, chestY, hipY, pal, po, anim);
 }
 
@@ -673,36 +791,43 @@ function drawWieldedWeapon(
   anim: AnimName,
 ): void {
   const rightX = cx + 12;
-  const rightY = chestY + 9 + (po.armR | 0);
+  const rightY = chestY + 9 + Math.round(po.armR);
   const leftX = cx - 12;
-  const leftY = chestY + 9 + (po.armL | 0);
+  const leftY = chestY + 9 + Math.round(po.armL);
   const swing = po.swing;
+  const side = po.profile ? -1 : 1;
   if (weapon === 'sword') {
-    let tx: number;
-    let ty: number;
-    if (swing < 0.35) {
-      tx = rightX + (po.profile ? -6 : 6);
-      ty = rightY - 30;
-    } else if (swing < 0.7) {
-      tx = rightX + (po.profile ? -32 : 30);
-      ty = rightY - 4;
-    } else {
-      tx = rightX + (po.profile ? -18 : 16);
-      ty = rightY + 16;
-    }
+    const [bx, by] = sampleKeys(swing, [
+      [0.0, 5, -22],
+      [0.16, 3, -34],
+      [0.28, 18, -26],
+      [0.38, 32, -2],
+      [0.52, 20, 18],
+      [0.74, 8, 8],
+      [1.0, 5, 1],
+    ]);
+    const tx = rightX + side * bx;
+    const ty = rightY + by;
     drawDiag(p, rightX, rightY - 1, tx, ty, 3, '#dce4ee', pal.outline);
     p.rect(rightX - 3, rightY - 3, 7, 7, pal.accent);
     p.disc(rightX, rightY, 3, pal.skin, pal.outline);
     p.p(rightX - 1, rightY - 1, pal.skinHi);
   } else if (weapon === 'staff') {
-    const lift = (swing * 10) | 0;
-    const x = rightX + 4;
-    p.rect(x, rightY - 36 - lift, 3, 42, '#7a5030');
-    p.vline(x - 1, rightY - 36 - lift, 42, pal.outline);
-    p.vline(x + 3, rightY - 36 - lift, 42, pal.outline);
-    p.disc(x + 1, rightY - 38 - lift, 6, pal.accent, pal.outline);
-    p.disc(x + 1, rightY - 38 - lift, 3, '#e8f8ff');
-    p.p(x, rightY - 40 - lift, '#ffffff');
+    const [lift, thrust] = sampleKeys(swing, [
+      [0.0, 0, 0],
+      [0.2, 12, 1],
+      [0.36, 6, 8],
+      [0.52, 10, 4],
+      [1.0, 1, 0],
+    ]);
+    const x = rightX + 4 + Math.round(side * thrust);
+    const ly = Math.round(lift);
+    p.rect(x, rightY - 36 - ly, 3, 42, '#7a5030');
+    p.vline(x - 1, rightY - 36 - ly, 42, pal.outline);
+    p.vline(x + 3, rightY - 36 - ly, 42, pal.outline);
+    p.disc(x + 1, rightY - 38 - ly, 6, pal.accent, pal.outline);
+    p.disc(x + 1, rightY - 38 - ly, 3, '#e8f8ff');
+    p.p(x, rightY - 40 - ly, '#ffffff');
   } else if (weapon === 'bow') {
     const gx = leftX;
     const gy = leftY;
@@ -715,7 +840,16 @@ function drawWieldedWeapon(
     p.vline(gx + 5, gy - 10, 20, '#f0e0c0');
     p.p(gx + 5, gy - 11, pal.outline);
     p.p(gx + 5, gy + 10, pal.outline);
-    const draw = anim === 'attack' ? (6 + ((swing * 4) | 0)) : 2;
+    const drawAmt = anim === 'attack'
+      ? sampleKeys(swing, [
+          [0.0, 2],
+          [0.4, 12],
+          [0.52, 13],
+          [0.6, 3],
+          [1.0, 2],
+        ])[0]
+      : 2;
+    const draw = Math.round(drawAmt);
     p.hline(gx - 10, gy, 18 + draw, '#e8d0a0');
     p.p(gx - 11, gy, pal.outline);
     p.p(gx - 12, gy - 1, '#c04040');
@@ -725,15 +859,25 @@ function drawWieldedWeapon(
     p.disc(gx, gy, 3, pal.skin, pal.outline);
     p.disc(rightX - 2, gy, 3, pal.skin, pal.outline);
   } else if (weapon === 'club') {
-    p.rect(rightX, rightY - 10, 4, 16, '#5a3a18');
-    p.disc(rightX + 2, rightY - 14, 6, '#6a4a22', pal.outline);
+    const [lift, reach] = sampleKeys(swing, [
+      [0.0, 0, 0],
+      [0.18, 8, -2],
+      [0.38, -2, 10],
+      [0.55, -4, 8],
+      [1.0, 0, 0],
+    ]);
+    const hx = rightX + Math.round(side * reach);
+    const hy0 = rightY - 10 - Math.round(lift);
+    p.rect(hx, hy0, 4, 16, '#5a3a18');
+    p.disc(hx + 2, hy0 - 4, 6, '#6a4a22', pal.outline);
   }
 }
 
 function drawWolf(p: Pix, anim: AnimName, frame: number, dir: number): void {
-  const t = (frame / 6) * Math.PI * 2;
-  const bob = anim === 'walk' ? Math.abs(Math.sin(t)) * 1.5 : 0;
-  const y = 70 - (bob | 0);
+  const t = (frame / FRAMES.walk) * Math.PI * 2;
+  const pass = Math.cos(t);
+  const bob = anim === 'walk' ? Math.abs(pass) * 1.15 : 0;
+  const y = 70 - Math.round(bob);
   const back = dir === 4;
   const profile = dir === 2 || dir === 3;
   const hx = back ? 24 : 54;
@@ -759,16 +903,18 @@ function drawWolf(p: Pix, anim: AnimName, frame: number, dir: number): void {
     p.oval(hx - 4, y - 2, 3, 2, '#f09090');
     p.oval(hx + 4, y - 2, 3, 2, '#f09090');
   }
-  p.rect(26, y + 12, 5, 10 + (Math.sin(t) * 2 | 0), dark);
-  p.rect(34, y + 12, 5, 10 + (-Math.sin(t) * 2 | 0), dark);
-  p.rect(42, y + 12, 5, 10 + (Math.sin(t) * 2 | 0), dark);
-  p.rect(50, y + 12, 5, 10 + (-Math.sin(t) * 2 | 0), dark);
+  const liftA = anim === 'walk' ? Math.round(Math.max(0, pass) * 3) : 0;
+  const liftB = anim === 'walk' ? Math.round(Math.max(0, -pass) * 3) : 0;
+  p.rect(26, y + 12 - liftA, 5, 10 + liftA, dark);
+  p.rect(34, y + 12 - liftB, 5, 10 + liftB, dark);
+  p.rect(42, y + 12 - liftB, 5, 10 + liftB, dark);
+  p.rect(50, y + 12 - liftA, 5, 10 + liftA, dark);
   p.oval(back ? 58 : 22, y + 4, 5, 4, dark, out);
   if (anim === 'attack') p.disc(hx + (back ? -10 : 10), y, 3, '#f0d0d0');
 }
 
-function drawGoblin(p: Pix, anim: AnimName, frame: number, dir: number): void {
-  drawHuman(p, GOBLIN_PAL, anim, frame, dir, { weapon: 'club', hat: 'none', shield: false });
+function drawGoblin(p: Pix, anim: AnimName, frame: number, dir: number, gait = 1): void {
+  drawHuman(p, GOBLIN_PAL, anim, frame, dir, { weapon: 'club', hat: 'none', shield: false }, gait);
   const po = pose(anim, frame, dir);
   const { cx, hy } = bodyLayout(po);
   if (anim === 'death' || po.fullBack) return;
@@ -783,8 +929,8 @@ function drawGoblin(p: Pix, anim: AnimName, frame: number, dir: number): void {
 }
 
 function drawCrawler(p: Pix, anim: AnimName, frame: number): void {
-  const t = (frame / 6) * Math.PI * 2;
-  const y = 74 + (Math.sin(t) | 0);
+  const t = (frame / FRAMES.walk) * Math.PI * 2;
+  const y = 74 + Math.round(Math.sin(t));
   p.oval(40, 90, 12, 3, 'rgba(0,0,0,0.28)');
   const shell = '#6a3880';
   const glow = '#dd77f0';
@@ -862,6 +1008,7 @@ export function paintSprite(
   dir: number,
   gear: Gear,
   pal?: Palette,
+  gait = 1,
 ): void {
   const ctx = canvas.getContext('2d')!;
   const p = new Pix(ctx, W, H);
@@ -875,20 +1022,12 @@ export function paintSprite(
   else if (kind === 'herb') drawHerb(p, frame);
   else if (kind === 'tree') drawTree(p, frame);
   else if (kind === 'lamp') drawLamp(p, frame);
-  else if (kind === 'goblin') drawGoblin(p, anim, frame, d);
+  else if (kind === 'goblin') drawGoblin(p, anim, frame, d, gait);
   else {
     const palette = pal ?? (kind === 'hero' ? HERO_PALETTES.vanguard : NPC_PAL[kind] ?? NPC_PAL.herald);
-    drawHuman(p, palette, anim, frame, d, gear);
+    drawHuman(p, palette, anim, frame, d, gear, gait);
   }
 }
-
-const FRAMES: Record<AnimName, number> = {
-  idle: 8,
-  walk: 6,
-  attack: 6,
-  cast: 6,
-  death: 4,
-};
 
 export class SpriteActor {
   readonly group = new THREE.Group();
@@ -902,7 +1041,7 @@ export class SpriteActor {
   private tex: THREE.CanvasTexture;
   private anim: AnimName = 'idle';
   private frame = 0;
-  private acc = 0;
+  private gait = 1;
   private lastKey = '';
   private flashT = 0;
   private mat: THREE.SpriteMaterial;
@@ -941,25 +1080,31 @@ export class SpriteActor {
 
   setAnim(anim: AnimName): void {
     if (this.anim === anim) return;
+    const from = this.anim;
     this.anim = anim;
-    this.frame = 0;
-    this.acc = 0;
+    if (anim === 'walk' && from === 'idle') this.frame = FRAMES.walk * 0.25;
+    else if (anim === 'idle' && from === 'walk') this.frame = 0;
+    else this.frame = 0;
     this.redraw();
+  }
+
+  setMoveBlend(blend: number): void {
+    this.gait = Math.max(0, Math.min(1, blend));
   }
 
   setAttackProgress(u: number): void {
     this.anim = 'attack';
-    this.frame = Math.max(0, Math.min(5, Math.floor(u * 6)));
+    this.frame = Math.max(0, Math.min(FRAMES.attack - 0.001, u * FRAMES.attack));
     this.redraw();
   }
 
   setCastProgress(u: number): void {
     this.anim = 'cast';
-    this.frame = Math.max(0, Math.min(5, Math.floor(u * 6)));
+    this.frame = Math.max(0, Math.min(FRAMES.cast - 0.001, u * FRAMES.cast));
     this.redraw();
   }
 
-  turnToward(yaw: number, dt: number, rate = 10): void {
+  turnToward(yaw: number, dt: number, rate = 7): void {
     let d = yaw - this.facing;
     while (d > Math.PI) d -= Math.PI * 2;
     while (d < -Math.PI) d += Math.PI * 2;
@@ -977,15 +1122,13 @@ export class SpriteActor {
       this.flashT -= dt;
       if (this.flashT <= 0) this.mat.color.setHex(0xffffff);
     }
-    this.acc += dt;
-    const step =
-      this.anim === 'walk' ? 0.09
-      : this.anim === 'idle' ? 0.16
-      : this.anim === 'death' ? 0.16
-      : 0.08;
-    if (this.anim !== 'attack' && this.anim !== 'cast' && this.acc >= step) {
-      this.acc = 0;
-      this.frame = (this.frame + 1) % FRAMES[this.anim];
+    if (this.anim !== 'attack' && this.anim !== 'cast') {
+      const cycle =
+        this.anim === 'walk' ? 0.72
+        : this.anim === 'idle' ? 1.28
+        : 0.64;
+      this.frame += dt * (FRAMES[this.anim] / cycle);
+      while (this.frame >= FRAMES[this.anim]) this.frame -= FRAMES[this.anim];
     }
     this.redraw(camYaw);
   }
@@ -993,10 +1136,12 @@ export class SpriteActor {
   private redraw(camYaw = Math.PI / 4): void {
     const rel = this.facing - camYaw + Math.PI;
     const dir = ((Math.round(rel / (Math.PI / 4)) % 8) + 8) % 8;
-    const key = `${this.kind}_${this.anim}_${this.frame}_${dir}_${this.gear.weapon}_${this.gear.hat}_${this.gear.shield}`;
+    const qFrame = Math.round(this.frame * 4);
+    const qGait = Math.round(this.gait * 8);
+    const key = `${this.kind}_${this.anim}_${qFrame}_${qGait}_${dir}_${this.gear.weapon}_${this.gear.hat}_${this.gear.shield}`;
     if (key === this.lastKey) return;
     this.lastKey = key;
-    paintSprite(this.canvas, this.kind, this.anim, this.frame, dir, this.gear, this.pal);
+    paintSprite(this.canvas, this.kind, this.anim, this.frame, dir, this.gear, this.pal, this.gait);
     this.tex.needsUpdate = true;
   }
 }
