@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { HeroClass } from '../game/types';
+import { cobbleTileMap, grassTileMap, plasterMap, roofTileMap, stoneMap, woodMap } from './textures';
 
 const matCache = new Map<string, THREE.MeshStandardMaterial>();
 
@@ -60,44 +61,55 @@ export function createGround(): THREE.Group {
   const g = new THREE.Group();
   g.name = 'ground';
 
-  const grass = new THREE.Mesh(
-    new THREE.PlaneGeometry(96, 96, 1, 1),
-    mat(0x4a6b32, { roughness: 0.95, flatShading: true }),
-  );
+  const grassMat = new THREE.MeshStandardMaterial({
+    map: grassTileMap(48),
+    roughness: 0.96,
+    metalness: 0.0,
+    flatShading: true,
+  });
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(96, 96, 1, 1), grassMat);
   grass.rotation.x = -Math.PI / 2;
   grass.receiveShadow = true;
   grass.name = 'grass';
   g.add(grass);
 
-  const plaza = new THREE.Mesh(
-    new THREE.CircleGeometry(9.2, 28),
-    mat(0x8a8070, { roughness: 0.88, metalness: 0.04 }),
-  );
+  const cobble = cobbleTileMap(12, 12);
+  const plazaMat = new THREE.MeshStandardMaterial({
+    map: cobble,
+    roughness: 0.88,
+    metalness: 0.04,
+    flatShading: true,
+  });
+  const plaza = new THREE.Mesh(new THREE.PlaneGeometry(18, 18, 1, 1), plazaMat);
   plaza.rotation.x = -Math.PI / 2;
-  plaza.position.y = 0.02;
+  plaza.position.y = 0.03;
   plaza.receiveShadow = true;
   plaza.name = 'plaza';
   g.add(plaza);
 
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(8.4, 9.2, 28),
-    mat(0x6a6254, { roughness: 0.9 }),
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.03;
-  ring.receiveShadow = true;
-  g.add(ring);
-
-  const addPath = (x: number, z: number, w: number, d: number, rot = 0) => {
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat(0x7a6e58, { roughness: 0.92 }));
+  const pathMat = new THREE.MeshStandardMaterial({
+    map: cobbleTileMap(16, 3),
+    roughness: 0.9,
+    flatShading: true,
+  });
+  const addPath = (x: number, z: number, w: number, d: number) => {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), pathMat);
     p.rotation.x = -Math.PI / 2;
-    p.rotation.z = rot;
-    p.position.set(x, 0.018, z);
+    p.position.set(x, 0.02, z);
     p.receiveShadow = true;
+    p.name = 'plaza';
     g.add(p);
   };
-  addPath(0, 0, 4.2, 28);
-  addPath(0, 0, 32, 3.6);
+  addPath(0, 0, 4, 28);
+  addPath(0, 0, 32, 4);
+
+  const grid = new THREE.GridHelper(96, 96, 0x2a4a20, 0x3a5a2c);
+  grid.position.y = 0.04;
+  const gridMat = grid.material as THREE.Material;
+  gridMat.transparent = true;
+  gridMat.opacity = 0.22;
+  gridMat.depthWrite = false;
+  g.add(grid);
 
   return g;
 }
@@ -148,36 +160,60 @@ export function createHouse(
 ): THREE.Group {
   const g = new THREE.Group();
   g.name = 'house';
-  const plaster = mat(0xd8c4a0, { roughness: 0.9 });
-  const timber = mat(0x4a3020, { roughness: 0.85 });
-  const roof = mat(roofColor, { roughness: 0.72 });
+  const plaster = new THREE.MeshStandardMaterial({
+    map: plasterMap(),
+    roughness: 0.9,
+    flatShading: true,
+  });
+  const timber = new THREE.MeshStandardMaterial({
+    map: woodMap(),
+    roughness: 0.85,
+    flatShading: true,
+  });
+  const roof = new THREE.MeshStandardMaterial({
+    map: roofTileMap(),
+    color: roofColor,
+    roughness: 0.72,
+    flatShading: true,
+  });
   const dark = mat(0x2a1c12, { roughness: 0.8 });
 
   const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), plaster);
   body.position.y = height / 2;
-  part(body, g, 1.02);
+  part(body, g, 1.015);
 
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(width + 0.08, 0.12, 0.12), timber);
-  beam.position.set(0, height * 0.55, depth / 2 + 0.02);
-  part(beam, g);
-  const beam2 = beam.clone();
-  beam2.position.z = -depth / 2 - 0.02;
-  g.add(beam2);
+  for (const z of [depth / 2 + 0.04, -depth / 2 - 0.04]) {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(width + 0.12, 0.16, 0.16), timber);
+    beam.position.set(0, height * 0.55, z);
+    part(beam, g);
+  }
+  for (const x of [-width / 2 - 0.04, width / 2 + 0.04]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, height, 0.18), timber);
+    post.position.set(x, height / 2, depth / 2 + 0.02);
+    part(post, g);
+  }
 
-  const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(width, depth) * 0.78, height * 0.7, 4), roof);
-  roofMesh.position.y = height + height * 0.28;
+  const roofMesh = new THREE.Mesh(
+    new THREE.ConeGeometry(Math.max(width, depth) * 0.82, height * 0.85, 4),
+    roof,
+  );
+  roofMesh.position.y = height + height * 0.32;
   roofMesh.rotation.y = Math.PI / 4;
-  part(roofMesh, g, 1.03);
+  part(roofMesh, g, 1.02);
 
-  const door = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.95, 0.08), dark);
-  door.position.set(0, 0.48, depth / 2 + 0.04);
+  const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.45, height * 0.7, 0.45), mat(0x6a6058));
+  chimney.position.set(width * 0.28, height + height * 0.35, -depth * 0.15);
+  part(chimney, g);
+
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.15, 0.1), dark);
+  door.position.set(0, 0.58, depth / 2 + 0.05);
   part(door, g);
 
   const win = new THREE.Mesh(
-    new THREE.BoxGeometry(0.38, 0.32, 0.06),
-    mat(0xf0d878, { emissive: 0xaa8844, emissiveIntensity: 0.45 }),
+    new THREE.BoxGeometry(0.42, 0.36, 0.08),
+    mat(0xf0d878, { emissive: 0xaa8844, emissiveIntensity: 0.55 }),
   );
-  win.position.set(-width * 0.28, height * 0.55, depth / 2 + 0.04);
+  win.position.set(-width * 0.28, height * 0.55, depth / 2 + 0.05);
   part(win, g);
   const win2 = win.clone();
   win2.position.x = width * 0.28;
@@ -230,16 +266,20 @@ export function createLamp(): THREE.Group {
 
 function solidWall(length: number): THREE.Group {
   const g = new THREE.Group();
-  const stone = mat(0x7a7468, { roughness: 0.82 });
+  const stone = new THREE.MeshStandardMaterial({
+    map: stoneMap(),
+    roughness: 0.82,
+    flatShading: true,
+  });
   const top = mat(0x5a5448, { roughness: 0.78 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(length, 2.15, 0.7), stone);
-  body.position.y = 1.08;
-  part(body, g, 1.015);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(length, 2.35, 0.85), stone);
+  body.position.y = 1.18;
+  part(body, g, 1.012);
   const merlonCount = Math.max(2, Math.floor(length / 1.4));
   for (let i = 0; i < merlonCount; i++) {
     const t = merlonCount === 1 ? 0 : (i / (merlonCount - 1) - 0.5) * (length - 0.6);
-    const merlon = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.78), top);
-    merlon.position.set(t, 2.3, 0);
+    const merlon = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.5, 0.95), top);
+    merlon.position.set(t, 2.5, 0);
     part(merlon, g);
   }
   return g;

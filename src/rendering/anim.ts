@@ -4,11 +4,11 @@ function get(root: THREE.Object3D, name: string): THREE.Object3D | undefined {
   return root.getObjectByName(name);
 }
 
-export const PLAYER_ATTACK_DURATION = 0.42;
-export const PLAYER_ATTACK_CONNECT_START = 0.16;
-export const PLAYER_ATTACK_CONNECT_END = 0.28;
+export const PLAYER_ATTACK_DURATION = 0.58;
+export const PLAYER_ATTACK_CONNECT_START = 0.28;
+export const PLAYER_ATTACK_CONNECT_END = 0.42;
 
-export function turnTowardYaw(obj: THREE.Object3D, targetYaw: number, dt: number, rate = 8): void {
+export function turnTowardYaw(obj: THREE.Object3D, targetYaw: number, dt: number, rate = 6.5): void {
   let d = targetYaw - obj.rotation.y;
   while (d > Math.PI) d -= Math.PI * 2;
   while (d < -Math.PI) d += Math.PI * 2;
@@ -37,8 +37,9 @@ export function animatePlayerIdle(player: THREE.Group, t: number): void {
 
 export function animatePlayerWalk(player: THREE.Group, t: number, blend: number): void {
   const b = Math.max(0, Math.min(1, blend));
-  const phase = t * 9.2;
+  const phase = t * 8.7;
   const stride = Math.sin(phase) * 0.55 * b;
+  const pass = Math.cos(phase);
   const legL = get(player, 'legL');
   const legR = get(player, 'legR');
   const armL = get(player, 'armL');
@@ -46,15 +47,18 @@ export function animatePlayerWalk(player: THREE.Group, t: number, blend: number)
   const torso = get(player, 'playerTorso');
   if (legL) legL.rotation.x = stride;
   if (legR) legR.rotation.x = -stride;
-  if (armL) armL.rotation.x = -stride * 0.7;
-  if (armR) armR.rotation.x = stride * 0.7;
-  if (torso) torso.rotation.z = Math.sin(phase) * 0.04 * b;
-  player.position.y = Math.abs(Math.sin(phase)) * 0.035 * b;
+  if (armL) armL.rotation.x = -Math.sin(phase - 0.22) * 0.4 * b;
+  if (armR) armR.rotation.x = Math.sin(phase - 0.22) * 0.4 * b;
+  if (torso) torso.rotation.z = pass * 0.045 * b;
+  player.position.y = Math.abs(pass) * 0.028 * b;
 }
 
 export function animatePlayerAttack(player: THREE.Group, t: number, heroClass: string): void {
   const u = Math.max(0, Math.min(1, t));
-  const swing = u < 0.35 ? u / 0.35 : 1 - (u - 0.35) / 0.65;
+  const wind = u < 0.18 ? u / 0.18 : 1;
+  const strike = u < 0.18 ? 0 : u < 0.4 ? (u - 0.18) / 0.22 : 1;
+  const recover = u < 0.55 ? 0 : (u - 0.55) / 0.45;
+  const swing = u < 0.18 ? wind * 0.35 : u < 0.4 ? 0.35 + strike * 0.65 : 1 - recover * 0.85;
   const armR = get(player, 'armR');
   const tool = get(player, 'toolRoot');
   const torso = get(player, 'playerTorso');
@@ -65,10 +69,10 @@ export function animatePlayerAttack(player: THREE.Group, t: number, heroClass: s
     if (armR) armR.rotation.x = -0.4 * swing;
     if (tool) tool.rotation.y = 0.6 * swing;
   } else {
-    if (armR) armR.rotation.x = -1.4 * swing;
-    if (tool) tool.rotation.x = -1.2 * swing;
+    if (armR) armR.rotation.x = -1.5 * (u < 0.18 ? wind : 1 - strike * 0.9);
+    if (tool) tool.rotation.x = -1.3 * swing;
   }
-  if (torso) torso.rotation.y = 0.25 * swing;
+  if (torso) torso.rotation.y = (u < 0.18 ? -0.12 * wind : 0.28 * strike) * (1 - recover);
 }
 
 export function animateHitFlinch(root: THREE.Object3D, t: number, inten = 1): void {

@@ -9,7 +9,14 @@ export function loadSave(): SaveData | null {
     const data = JSON.parse(raw) as SaveData;
     if (data.version !== 1 || !data.heroClass) return null;
     const base = defaultSave(data.heroClass, data.name);
-    return { ...base, ...data, skills: { ...base.skills, ...data.skills } };
+    return {
+      ...base,
+      ...data,
+      skills: { ...base.skills, ...data.skills },
+      weapon: data.weapon ?? base.weapon,
+      hat: data.hat ?? base.hat,
+      shield: data.shield ?? base.shield,
+    };
   } catch {
     return null;
   }

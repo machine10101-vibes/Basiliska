@@ -29,6 +29,9 @@ export interface SaveData {
   gold: number;
   skills: Record<SkillId, SkillState>;
   inventory: ItemStack[];
+  weapon: string | null;
+  hat: string | null;
+  shield: string | null;
 }
 
 export const CLASS_META: Record<
@@ -87,13 +90,25 @@ export const SKILL_META: Record<SkillId, { name: string; icon: string }> = {
   energy: { name: 'Energy', icon: '✦' },
 };
 
-export const ITEM_META: Record<string, { name: string; icon: string; stackable: boolean }> = {
-  short_sword: { name: 'Gate Shortsword', icon: '⚔', stackable: false },
-  ash_staff: { name: 'Ash Staff', icon: '⚚', stackable: false },
-  briar_bow: { name: 'Briar Bow', icon: '🏹', stackable: false },
+export interface ItemDef {
+  name: string;
+  icon: string;
+  stackable: boolean;
+  slot?: 'weapon' | 'hat' | 'shield';
+}
+
+export const ITEM_META: Record<string, ItemDef> = {
+  short_sword: { name: 'Gate Shortsword', icon: '⚔', stackable: false, slot: 'weapon' },
+  ash_staff: { name: 'Ash Staff', icon: '⚚', stackable: false, slot: 'weapon' },
+  briar_bow: { name: 'Briar Bow', icon: '🏹', stackable: false, slot: 'weapon' },
+  iron_helm: { name: 'Iron Helm', icon: '🪖', stackable: false, slot: 'hat' },
+  aether_hood: { name: 'Aether Hood', icon: '🧙', stackable: false, slot: 'hat' },
+  briar_cap: { name: 'Briar Cap', icon: '🧢', stackable: false, slot: 'hat' },
+  leaf_circlet: { name: 'Leaf Circlet', icon: '🌿', stackable: false, slot: 'hat' },
+  oak_shield: { name: 'Oak Shield', icon: '🛡', stackable: false, slot: 'shield' },
   hp_potion: { name: 'Red Elixir', icon: '🧪', stackable: true },
   mp_potion: { name: 'Blue Elixir', icon: '💧', stackable: true },
-  wolf_pelt: { name: 'Wolf Pelt', icon: '🦊', stackable: true },
+  wolf_pelt: { name: 'Wolf Pelt Hood', icon: '🦊', stackable: false, slot: 'hat' },
   goblin_ear: { name: 'Raider Token', icon: '🪙', stackable: true },
   crawler_ichor: { name: 'Crawler Ichor', icon: '🟣', stackable: true },
   vale_herb: { name: 'Vale Herb', icon: '🌿', stackable: true },
@@ -118,12 +133,14 @@ export function defaultSave(heroClass: HeroClass = 'vanguard', name = 'Wanderer'
   const meta = CLASS_META[heroClass];
   const starter =
     heroClass === 'vanguard' ? 'short_sword' : heroClass === 'sage' ? 'ash_staff' : 'briar_bow';
+  const hat = heroClass === 'vanguard' ? 'iron_helm' : heroClass === 'sage' ? 'aether_hood' : 'briar_cap';
+  const shield = heroClass === 'vanguard' ? 'oak_shield' : null;
   return {
     version: 1,
     name: name.slice(0, 16) || 'Wanderer',
     heroClass,
     x: 0,
-    z: 3.2,
+    z: 3,
     hp: meta.hp,
     maxHp: meta.hp,
     mp: meta.mp,
@@ -141,9 +158,15 @@ export function defaultSave(heroClass: HeroClass = 'vanguard', name = 'Wanderer'
     },
     inventory: [
       { id: starter, qty: 1 },
+      { id: hat, qty: 1 },
+      ...(shield ? [{ id: 'oak_shield', qty: 1 }] : []),
+      { id: 'leaf_circlet', qty: 1 },
       { id: 'hp_potion', qty: 5 },
       { id: 'mp_potion', qty: 3 },
       { id: 'town_bread', qty: 4 },
     ],
+    weapon: starter,
+    hat,
+    shield,
   };
 }

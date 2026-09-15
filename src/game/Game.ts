@@ -2,41 +2,30 @@ import * as THREE from 'three';
 import { HUD } from '../ui/HUD';
 import { VFX } from '../rendering/vfx';
 import {
-  animateDeath,
-  animateHitFlinch,
-  animateMobAttack,
-  animatePlayerAttack,
-  animatePlayerIdle,
-  animatePlayerWalk,
-  animateQuadWalk,
   PLAYER_ATTACK_CONNECT_END,
   PLAYER_ATTACK_CONNECT_START,
   PLAYER_ATTACK_DURATION,
-  resetPlayerPose,
-  turnTowardYaw,
 } from '../rendering/anim';
 import {
-  createCrawler,
-  createDummy,
   createFountain,
   createGate,
-  createGoblin,
   createGodRays,
   createGround,
-  createHerb,
   createHouse,
-  createLamp,
   createMoveMarker,
-  createNpc,
-  createPlayerMesh,
   createSkyDome,
   createStall,
-  createTree,
   createWallSegment,
-  createWolf,
-  flashMesh,
-  uniqueMaterials,
 } from '../rendering/meshes';
+import {
+  SpriteActor,
+  createHeroSprite,
+  createMobSprite,
+  createNpcSprite,
+  createPropSprite,
+  heroGearFromItems,
+  paintPortrait,
+} from '../rendering/sprites';
 import { CLASS_META, ITEM_META, levelFromXp, type HeroClass, type SaveData, type SkillId } from './types';
 import { loadSave, newSave, writeSave } from './Persistence';
 
@@ -46,6 +35,7 @@ type InteractKind = MobKind | 'herb' | 'npc';
 interface WorldObject {
   kind: InteractKind;
   mesh: THREE.Group;
+  actor?: SpriteActor;
   id: string;
   name: string;
   hp: number;
@@ -69,17 +59,24 @@ type Activity =
 
 const TOWN = { x0: -16, x1: 16, z0: -14, z1: 14 };
 const SAVE_EVERY = 3;
-const FRUSTUM = 11.5;
+const CAM_PITCH = 0.92;
+const TILE = 1;
 
 function inTown(x: number, z: number): boolean {
   return x > TOWN.x0 + 0.8 && x < TOWN.x1 - 0.8 && z > TOWN.z0 + 0.8 && z < TOWN.z1 - 0.8;
 }
 
+function snapTile(v: number): number {
+  return Math.round(v / TILE) * TILE;
+}
+
 export class Game {
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
-  private camera: THREE.OrthographicCamera;
+  private camera: THREE.PerspectiveCamera;
   private player!: THREE.Group;
+  private playerActor!: SpriteActor;
+  private actors: SpriteActor[] = [];
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
   private clock = new THREE.Clock();
@@ -97,11 +94,14 @@ export class Game {
   private camTarget = new THREE.Vector3();
   private camPos = new THREE.Vector3();
   private deathAnims: { mesh: THREE.Group; t: number; dur: number }[] = [];
-  private hitReacts: { mesh: THREE.Object3D; t: number }[] = [];
   private pendingTarget: WorldObject | null = null;
   private pendingPowered = false;
   private fountainJet: THREE.Object3D | null = null;
   private inputBound = false;
+  private camYaw = Math.PI / 4;
+  private camDist = 16;
+  private orbiting = false;
+  private lastPointerX = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -118,17 +118,11 @@ export class Game {
     this.scene.fog = new THREE.FogExp2(0x7a98b0, 0.016);
 
     const aspect = window.innerWidth / window.innerHeight;
-    this.camera = new THREE.OrthographicCamera(
-      -FRUSTUM * aspect,
-      FRUSTUM * aspect,
-      FRUSTUM,
-      -FRUSTUM,
-      0.1,
-      220,
-    );
+    this.camera = new THREE.PerspectiveCamera(38, aspect, 0.4, 240);
 
     this.buildWorldPreview();
     this.bindTitle();
+    this.bindCamera();
     window.addEventListener('resize', () => this.onResize());
     this.tick();
 
@@ -192,12 +186,13 @@ export class Game {
       [7, -7],
       [-7, 7],
       [7, 7],
-      [0, 10.5],
-      [0, -10.5],
+      [0, 10],
+      [0, -10],
     ]) {
-      const lamp = createLamp();
-      lamp.position.set(x, 0, z);
-      this.scene.add(lamp);
+      const lamp = createPropSprite('lamp');
+      lamp.group.position.set(x, 0, z);
+      this.scene.add(lamp.group);
+      this.actors.push(lamp);
     }
 
     const wallN = createWallSegment(28, 3.4);
@@ -241,17 +236,62 @@ export class Game {
       [26, -3],
     ];
     treeSpots.forEach(([x, z], i) => {
-      const t = createTree(i);
-      t.position.set(x, 0, z);
-      this.scene.add(t);
+      const t = createPropSprite('tree', i);
+      t.group.position.set(x, 0, z);
+      this.scene.add(t.group);
+      this.actors.push(t);
     });
 
     this.moveMarker = createMoveMarker();
     this.moveMarker.visible = false;
     this.scene.add(this.moveMarker);
 
-    this.camera.position.set(22, 22, 22);
-    this.camera.lookAt(0, 0.6, 0);
+    this.placeCamera(0, 0.6, 0, 1);
+  }
+
+  private bindCamera(): void {
+    const canvas = this.renderer.domElement;
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    window.addEventListener('pointerdown', (e) => {
+      if (e.button === 2 || e.button === 1) {
+        this.orbiting = true;
+        this.lastPointerX = e.clientX;
+      }
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!this.orbiting) return;
+      this.camYaw -= (e.clientX - this.lastPointerX) * 0.007;
+      this.lastPointerX = e.clientX;
+    });
+    window.addEventListener('pointerup', () => {
+      this.orbiting = false;
+    });
+    canvas.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault();
+        this.camDist = Math.max(11, Math.min(32, this.camDist + e.deltaY * 0.02));
+      },
+      { passive: false },
+    );
+    document.getElementById('cam-ccw')?.addEventListener('click', () => {
+      this.camYaw += Math.PI / 4;
+    });
+    document.getElementById('cam-cw')?.addEventListener('click', () => {
+      this.camYaw -= Math.PI / 4;
+    });
+  }
+
+  private placeCamera(x: number, y: number, z: number, lerp = 1): void {
+    const elev = Math.sin(CAM_PITCH) * this.camDist;
+    const flat = Math.cos(CAM_PITCH) * this.camDist;
+    const ox = Math.sin(this.camYaw) * flat;
+    const oz = Math.cos(this.camYaw) * flat;
+    this.camPos.set(x + ox, y + elev, z + oz);
+    if (lerp >= 1) this.camera.position.copy(this.camPos);
+    else this.camera.position.lerp(this.camPos, lerp);
+    this.camTarget.set(x, y, z);
+    this.camera.lookAt(this.camTarget);
   }
 
   private bindTitle(): void {
@@ -265,6 +305,10 @@ export class Game {
         card.classList.add('selected');
         picked = (card.dataset.class as HeroClass) ?? 'vanguard';
       });
+      const canvas = card.querySelector('canvas');
+      if (canvas instanceof HTMLCanvasElement) {
+        paintPortrait(canvas, (card.dataset.class as HeroClass) ?? 'vanguard');
+      }
     });
     document.getElementById('btn-enter')?.addEventListener('click', () => {
       const name = nameInput?.value.trim() || 'Wanderer';
@@ -288,15 +332,18 @@ export class Game {
     this.hud.setVisible(true);
     this.hud.setClassLabel(CLASS_META[save.heroClass].name);
     this.hud.setBars(save);
-    this.hud.setInventory(save.inventory);
+    this.hud.setInventory(save.inventory, save);
     this.hud.setSkills(save);
     this.hud.chat(`Welcome to Valehaven, ${save.name}.`, 'system');
-    this.hud.chat('The north gate opens onto wolf woods. West: raiders. East: crawlers.', 'system');
-    this.hud.chat('Click the cobbles to walk. Click foes to strike. Town is a safe hold.', 'system');
+    this.hud.chat('Q / E or right-drag orbits the town around your sprite. Scroll zooms.', 'system');
+    this.hud.chat('Click cobbles to walk. Click foes to strike. Equip hats and weapons in the pack.', 'system');
 
-    this.player = createPlayerMesh(save.heroClass);
+    const gear = heroGearFromItems(save.heroClass, save.weapon, save.hat, Boolean(save.shield));
+    this.playerActor = createHeroSprite(save.heroClass, gear);
+    this.player = this.playerActor.group;
     this.player.position.set(save.x, 0, save.z);
     this.scene.add(this.player);
+    this.actors.push(this.playerActor);
 
     this.spawnActors();
 
@@ -312,7 +359,6 @@ export class Game {
   private spawnActors(): void {
     const addMob = (
       kind: MobKind,
-      mesh: THREE.Group,
       x: number,
       z: number,
       hp: number,
@@ -323,12 +369,14 @@ export class Game {
       loot: string,
       name: string,
     ) => {
-      uniqueMaterials(mesh);
-      mesh.position.set(x, 0, z);
-      this.scene.add(mesh);
+      const actor = createMobSprite(kind);
+      actor.group.position.set(x, 0, z);
+      this.scene.add(actor.group);
+      this.actors.push(actor);
       this.objects.push({
         kind,
-        mesh,
+        mesh: actor.group,
+        actor,
         id: `${kind}-${x}-${z}`,
         name,
         hp,
@@ -344,8 +392,7 @@ export class Game {
       });
     };
 
-    const dummy = createDummy();
-    addMob('dummy', dummy, 4.8, -3.4, 40, 0, 0, [0, 0], 0, '', 'Training Dummy');
+    addMob('dummy', 5, -3, 40, 0, 0, [0, 0], 0, '', 'Training Dummy');
 
     const wolves: [number, number][] = [
       [-3, 22],
@@ -353,25 +400,21 @@ export class Game {
       [-6, 26],
       [7, 23],
     ];
-    wolves.forEach(([x, z]) => addMob('wolf', createWolf(), x, z, 48, 6.2, 1.7, [4, 8], 12, 'wolf_pelt', 'Vale Wolf'));
+    wolves.forEach(([x, z]) => addMob('wolf', x, z, 48, 6.2, 1.7, [4, 8], 12, 'wolf_pelt', 'Vale Wolf'));
 
     const goblins: [number, number][] = [
       [-24, -2],
       [-26, 3],
       [-23, 6],
     ];
-    goblins.forEach(([x, z]) =>
-      addMob('goblin', createGoblin(), x, z, 56, 6.6, 1.6, [5, 9], 18, 'goblin_ear', 'Goblin Raider'),
-    );
+    goblins.forEach(([x, z]) => addMob('goblin', x, z, 56, 6.6, 1.6, [5, 9], 18, 'goblin_ear', 'Goblin Raider'));
 
     const crawlers: [number, number][] = [
       [24, 1],
       [26, -4],
       [23, 6],
     ];
-    crawlers.forEach(([x, z]) =>
-      addMob('crawler', createCrawler(), x, z, 42, 5.8, 1.5, [3, 7], 14, 'crawler_ichor', 'Spore Crawler'),
-    );
+    crawlers.forEach(([x, z]) => addMob('crawler', x, z, 42, 5.8, 1.5, [3, 7], 14, 'crawler_ichor', 'Spore Crawler'));
 
     const herbs: [number, number][] = [
       [-12, 17],
@@ -381,12 +424,14 @@ export class Game {
       [18, 8],
     ];
     herbs.forEach(([x, z], i) => {
-      const mesh = createHerb();
-      mesh.position.set(x, 0, z);
-      this.scene.add(mesh);
+      const actor = createPropSprite('herb', i);
+      actor.group.position.set(x, 0, z);
+      this.scene.add(actor.group);
+      this.actors.push(actor);
       this.objects.push({
         kind: 'herb',
-        mesh,
+        mesh: actor.group,
+        actor,
         id: `herb-${i}`,
         name: 'Vale Herb',
         hp: 1,
@@ -402,19 +447,21 @@ export class Game {
       });
     });
 
-    const npcs: [Parameters<typeof createNpc>[0], number, number, string, string][] = [
+    const npcs: ['herald' | 'smith' | 'alchemist' | 'inn', number, number, string, string][] = [
       ['herald', 1.6, 2.2, 'Gate Herald', 'Hold Valehaven. Wolves north, raiders west, crawlers east.'],
       ['smith', -5.4, 5.6, 'Ashen Smith', 'Steel is honest. Return with pelts if you want coin.'],
       ['alchemist', 5.6, 5.4, 'Vial Sister', 'Red restores flesh. Blue restores the aether.'],
       ['inn', 0.2, -4.8, 'Hearth Keep', 'Rest here. The wilderness does not forgive the weary.'],
     ];
     for (const [kind, x, z, name, line] of npcs) {
-      const mesh = createNpc(kind);
-      mesh.position.set(x, 0, z);
-      this.scene.add(mesh);
+      const actor = createNpcSprite(kind);
+      actor.group.position.set(x, 0, z);
+      this.scene.add(actor.group);
+      this.actors.push(actor);
       this.objects.push({
         kind: 'npc',
-        mesh,
+        mesh: actor.group,
+        actor,
         id: `npc-${kind}`,
         name,
         hp: 1,
@@ -432,17 +479,21 @@ export class Game {
   }
 
   private onResize(): void {
-    const aspect = window.innerWidth / window.innerHeight;
-    this.camera.left = -FRUSTUM * aspect;
-    this.camera.right = FRUSTUM * aspect;
-    this.camera.top = FRUSTUM;
-    this.camera.bottom = -FRUSTUM;
+    this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
   private onKey(e: KeyboardEvent): void {
     if (!this.playing) return;
+    if (e.key === 'q' || e.key === 'Q') {
+      this.camYaw += Math.PI / 4;
+      return;
+    }
+    if (e.key === 'e' || e.key === 'E') {
+      this.camYaw -= Math.PI / 4;
+      return;
+    }
     const map: Record<string, string> = {
       '1': 'attack',
       '2': 'skill',
@@ -487,9 +538,28 @@ export class Game {
   private useItem(index: number): void {
     const item = this.save.inventory[index];
     if (!item) return;
-    if (item.id === 'hp_potion' || item.id === 'town_bread') this.consume(item.id);
-    else if (item.id === 'mp_potion') this.consume(item.id);
-    else this.hud.chat(`${ITEM_META[item.id]?.name ?? item.id}.`, 'plain');
+    const meta = ITEM_META[item.id];
+    if (item.id === 'hp_potion' || item.id === 'town_bread' || item.id === 'mp_potion') {
+      this.consume(item.id);
+      return;
+    }
+    if (meta?.slot === 'weapon') {
+      this.save.weapon = this.save.weapon === item.id ? null : item.id;
+      this.hud.chat(`You ${this.save.weapon ? 'ready' : 'stow'} ${meta.name}.`, 'plain');
+    } else if (meta?.slot === 'hat') {
+      this.save.hat = this.save.hat === item.id ? null : item.id;
+      this.hud.chat(`You ${this.save.hat ? 'don' : 'remove'} ${meta.name}.`, 'plain');
+    } else if (meta?.slot === 'shield') {
+      this.save.shield = this.save.shield === item.id ? null : item.id;
+      this.hud.chat(`You ${this.save.shield ? 'raise' : 'lower'} ${meta.name}.`, 'plain');
+    } else {
+      this.hud.chat(`${meta?.name ?? item.id}.`, 'plain');
+      return;
+    }
+    this.playerActor.setGear(
+      heroGearFromItems(this.save.heroClass, this.save.weapon, this.save.hat, Boolean(this.save.shield)),
+    );
+    this.hud.setInventory(this.save.inventory, this.save);
   }
 
   private consume(id: string): void {
@@ -511,11 +581,12 @@ export class Game {
       this.hud.chat('Aether returns.', 'xp');
     }
     this.hud.setBars(this.save);
-    this.hud.setInventory(this.save.inventory);
+    this.hud.setInventory(this.save.inventory, this.save);
   }
 
   private onPointer(e: PointerEvent): void {
-    if (!this.playing) return;
+    if (!this.playing || this.orbiting) return;
+    if (e.button !== 0) return;
     const t = e.target as HTMLElement;
     if (t.closest('#hud') || t.closest('#title-screen')) return;
 
@@ -548,12 +619,14 @@ export class Game {
 
     const groundHit = hits.find((h) => h.object.name === 'grass' || h.object.name === 'plaza');
     const pt = (groundHit ?? first).point;
+    const tx = snapTile(pt.x);
+    const tz = snapTile(pt.z);
     this.pendingTarget = null;
     this.pendingPowered = false;
     this.hud.setProgress(false);
     this.hud.setTarget(null);
-    this.activity = { type: 'move', tx: pt.x, tz: pt.z };
-    this.showMarker(pt.x, pt.z);
+    this.activity = { type: 'move', tx, tz };
+    this.showMarker(tx, tz);
   }
 
   private objectFromMesh(mesh: THREE.Object3D): WorldObject | null {
@@ -679,7 +752,7 @@ export class Game {
     this.grantXp(obj.kind === 'goblin' ? 36 : 28, obj.kind === 'crawler' ? 'energy' : 'strength');
     this.hud.chat(`${obj.name} falls. +${gold} gold.`, 'loot');
     this.vfx.spawnBurst(obj.mesh.position, 0xf0d070, 14, 4);
-    this.hud.setInventory(this.save.inventory);
+    this.hud.setInventory(this.save.inventory, this.save);
     this.hud.setBars(this.save);
   }
 
@@ -706,8 +779,7 @@ export class Game {
     }
     dmg = Math.round(dmg + Math.random() * 4);
     target.hp -= dmg;
-    flashMesh(target.mesh);
-    this.hitReacts.push({ mesh: target.mesh, t: 0.22 });
+    target.actor?.flash();
     this.vfx.floatText(target.mesh.position, `-${dmg}`, '#e08080');
     this.hud.setTarget(target.name, target.hp, target.maxHp);
     this.hud.setBars(this.save);
@@ -727,9 +799,9 @@ export class Game {
           o.depleted = false;
           o.hp = o.maxHp;
           o.mesh.visible = true;
-          o.mesh.rotation.set(0, 0, 0);
           o.mesh.scale.setScalar(1);
           o.mesh.position.set(o.home.x, 0, o.home.z);
+          o.actor?.setAnim('idle');
         }
         continue;
       }
@@ -738,12 +810,13 @@ export class Game {
         const hx = o.home.x - o.mesh.position.x;
         const hz = o.home.z - o.mesh.position.z;
         const hd = Math.hypot(hx, hz);
-        o.mesh.rotation.x = 0;
         if (hd > 0.2) {
           o.mesh.position.x += (hx / hd) * 2.2 * dt;
           o.mesh.position.z += (hz / hd) * 2.2 * dt;
-          turnTowardYaw(o.mesh, Math.atan2(hx, hz), dt);
-          animateQuadWalk(o.mesh, this.animTime, 1);
+          o.actor?.turnToward(Math.atan2(hx, hz), dt);
+          o.actor?.setAnim('walk');
+        } else {
+          o.actor?.setAnim('idle');
         }
         continue;
       }
@@ -751,15 +824,14 @@ export class Game {
       const dz = pz - o.mesh.position.z;
       const dist = Math.hypot(dx, dz);
       if (dist < o.aggro && dist > o.atkRange) {
-        o.mesh.rotation.x = 0;
         o.mesh.position.x += (dx / dist) * 2.6 * dt;
         o.mesh.position.z += (dz / dist) * 2.6 * dt;
-        turnTowardYaw(o.mesh, Math.atan2(dx, dz), dt);
-        animateQuadWalk(o.mesh, this.animTime, 1);
+        o.actor?.turnToward(Math.atan2(dx, dz), dt);
+        o.actor?.setAnim('walk');
       } else if (dist <= o.atkRange) {
-        turnTowardYaw(o.mesh, Math.atan2(dx, dz), dt, 10);
+        o.actor?.turnToward(Math.atan2(dx, dz), dt, 10);
+        o.actor?.setAnim('attack');
         if (Math.random() < dt * 0.85) {
-          animateMobAttack(o.mesh, 0.5);
           const dmg = o.dmg[0] + Math.floor(Math.random() * (o.dmg[1] - o.dmg[0] + 1));
           const soaked = Math.min(this.save.sd, Math.floor(dmg * 0.35));
           this.save.sd = Math.max(0, this.save.sd - soaked);
@@ -772,10 +844,13 @@ export class Game {
         const hx = o.home.x - o.mesh.position.x;
         const hz = o.home.z - o.mesh.position.z;
         const hd = Math.hypot(hx, hz);
-        o.mesh.rotation.x = 0;
         if (hd > 0.25) {
           o.mesh.position.x += (hx / hd) * 1.8 * dt;
           o.mesh.position.z += (hz / hd) * 1.8 * dt;
+          o.actor?.turnToward(Math.atan2(hx, hz), dt);
+          o.actor?.setAnim('walk');
+        } else {
+          o.actor?.setAnim('idle');
         }
       }
     }
@@ -817,6 +892,7 @@ export class Game {
             color:
               o.kind === 'npc' ? '#f0d070' : o.kind === 'herb' ? '#66cc55' : o.kind === 'dummy' ? '#aaaaaa' : '#cc4444',
           })),
+        this.camYaw,
       );
       this.saveTimer += dt;
       if (this.saveTimer >= SAVE_EVERY) {
@@ -826,9 +902,13 @@ export class Game {
         writeSave(this.save);
       }
     } else {
-      this.camera.position.set(20 + Math.sin(this.animTime * 0.15) * 2, 22, 22);
-      this.camera.lookAt(0, 0.6, 0);
+      this.camYaw += dt * 0.12;
+      this.placeCamera(0, 0.55, 0, 1);
     }
+
+    for (const a of this.actors) a.update(dt, this.camYaw);
+    const compass = document.getElementById('compass-n');
+    if (compass) compass.style.transform = `translateX(-50%) rotate(${-(this.camYaw - Math.PI / 4)}rad)`;
 
     this.renderer.render(this.scene, this.camera);
   };
@@ -864,7 +944,7 @@ export class Game {
       } else {
         this.player.position.x += (dx / dist) * speed * dt;
         this.player.position.z += (dz / dist) * speed * dt;
-        turnTowardYaw(this.player, Math.atan2(dx, dz), dt);
+        this.playerActor.turnToward(Math.atan2(dx, dz), dt, 6);
         moving = true;
       }
     } else if (this.activity.type === 'gather') {
@@ -878,7 +958,7 @@ export class Game {
         this.addItem('vale_herb', 1);
         this.grantXp(12, 'vitality');
         this.hud.chat('You pick Vale Herb.', 'loot');
-        this.hud.setInventory(this.save.inventory);
+        this.hud.setInventory(this.save.inventory, this.save);
         this.hud.setProgress(false);
         this.activity = { type: 'idle' };
         this.pendingTarget = null;
@@ -893,12 +973,13 @@ export class Game {
         const dz = t.mesh.position.z - this.player.position.z;
         const dist = Math.hypot(dx, dz);
         const reach = CLASS_META[this.save.heroClass].attackRange;
-        turnTowardYaw(this.player, Math.atan2(dx, dz), dt, 10);
         if (dist > reach + 0.35) {
           this.player.position.x += (dx / dist) * speed * dt;
           this.player.position.z += (dz / dist) * speed * dt;
+          this.playerActor.turnToward(Math.atan2(dx, dz), dt, 6);
           moving = true;
         } else {
+          this.playerActor.turnToward(Math.atan2(dx, dz), dt, 9);
           this.activity.cooldown -= dt;
           if (this.activity.cooldown <= 0 && this.activity.swingT <= 0) {
             this.activity.swingT = 0.001;
@@ -907,7 +988,8 @@ export class Game {
           if (this.activity.swingT > 0) {
             this.activity.swingT += dt;
             const u = this.activity.swingT / PLAYER_ATTACK_DURATION;
-            animatePlayerAttack(this.player, u, this.save.heroClass);
+            if (this.pendingPowered && this.save.heroClass === 'sage') this.playerActor.setCastProgress(u);
+            else this.playerActor.setAttackProgress(u);
             if (
               !this.activity.hitDone &&
               u >= PLAYER_ATTACK_CONNECT_START &&
@@ -919,8 +1001,8 @@ export class Game {
             }
             if (this.activity.swingT >= PLAYER_ATTACK_DURATION) {
               this.activity.swingT = 0;
-              this.activity.cooldown = 0.55;
-              resetPlayerPose(this.player);
+              this.activity.cooldown = 0.48;
+              this.playerActor.setAnim('idle');
             }
           }
         }
@@ -928,10 +1010,10 @@ export class Game {
       }
     }
 
-    this.moveBlend += ((moving ? 1 : 0) - this.moveBlend) * Math.min(1, dt * 8);
+    this.moveBlend += ((moving ? 1 : 0) - this.moveBlend) * Math.min(1, dt * 5);
+    this.playerActor.setMoveBlend(this.moveBlend);
     if (this.activity.type !== 'combat' || this.activity.swingT <= 0) {
-      if (this.moveBlend > 0.08) animatePlayerWalk(this.player, this.animTime, this.moveBlend);
-      else animatePlayerIdle(this.player, this.animTime);
+      this.playerActor.setAnim(this.moveBlend > 0.1 ? 'walk' : 'idle');
     }
 
     this.mobThink(dt);
@@ -939,27 +1021,15 @@ export class Game {
     for (let i = this.deathAnims.length - 1; i >= 0; i--) {
       const d = this.deathAnims[i];
       d.t += dt;
-      animateDeath(d.mesh, d.t / d.dur);
+      const obj = this.objects.find((o) => o.mesh === d.mesh);
+      obj?.actor?.setAnim('death');
+      d.mesh.scale.setScalar(Math.max(0.2, 1 - d.t / d.dur));
       if (d.t >= d.dur) {
         d.mesh.visible = false;
         this.deathAnims.splice(i, 1);
       }
     }
-    for (let i = this.hitReacts.length - 1; i >= 0; i--) {
-      const h = this.hitReacts[i];
-      h.t -= dt;
-      animateHitFlinch(h.mesh, h.t, 1);
-      if (h.t <= 0) {
-        h.mesh.rotation.z = 0;
-        this.hitReacts.splice(i, 1);
-      }
-    }
 
-    const px = this.player.position.x;
-    const pz = this.player.position.z;
-    this.camTarget.set(px, 0.7, pz);
-    this.camPos.set(px + 20, 22, pz + 20);
-    this.camera.position.lerp(this.camPos, 1 - Math.pow(0.001, dt));
-    this.camera.lookAt(this.camTarget);
+    this.placeCamera(this.player.position.x, 0.7, this.player.position.z, 1 - Math.pow(0.001, dt));
   }
 }
